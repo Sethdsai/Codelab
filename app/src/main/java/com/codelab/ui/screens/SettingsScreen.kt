@@ -32,11 +32,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.codelab.ui.theme.HtmlGreen
 import com.codelab.ui.theme.StorageBar
 import com.codelab.viewmodel.EditorViewModel
@@ -44,7 +46,7 @@ import com.codelab.viewmodel.EditorViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: EditorViewModel, onBack: () -> Unit) {
-    val storageUsed by remember { viewModel.storageManager.usedSpace }
+    val storageUsed by viewModel.storageManager.usedSpace.collectAsState()
     val usagePercent by remember { mutableStateOf(viewModel.storageManager.getUsagePercentage()) }
     val usedFormatted = viewModel.storageManager.getUsedSpaceFormatted()
     val freeFormatted = viewModel.storageManager.getFreeSpaceFormatted()
@@ -195,7 +197,7 @@ fun SettingsScreen(viewModel: EditorViewModel, onBack: () -> Unit) {
                     Spacer(modifier = Modifier.height(12.dp))
 
                     LinearProgressIndicator(
-                        progress = { usagePercent / 100f },
+                        progress = usagePercent / 100f,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(8.dp),
@@ -206,9 +208,9 @@ fun SettingsScreen(viewModel: EditorViewModel, onBack: () -> Unit) {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        Text("Used: $usedFormatted", color = Color(0xFF5F6368), fontSize = androidx.compose.ui.unit.sp(13))
+                        Text("Used: $usedFormatted", color = Color(0xFF5F6368), fontSize = 13.sp)
                         Spacer(modifier = Modifier.weight(1f))
-                        Text("Free: $freeFormatted", color = Color(0xFF5F6368), fontSize = androidx.compose.ui.unit.sp(13))
+                        Text("Free: $freeFormatted", color = Color(0xFF5F6368), fontSize = 13.sp)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -257,25 +259,25 @@ fun SettingsScreen(viewModel: EditorViewModel, onBack: () -> Unit) {
                         Text("\u2022 ", color = HtmlGreen)
                         Text("Android", color = HtmlGreen, fontFamily = FontFamily.Monospace)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("active", color = HtmlGreen, fontSize = androidx.compose.ui.unit.sp(12))
+                        Text("active", color = HtmlGreen, fontSize = 12.sp)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("\u2022 ", color = Color(0xFF9AA0A6))
                         Text("iOS", color = Color(0xFF9AA0A6))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("wip", color = Color(0xFF9AA0A6), fontSize = androidx.compose.ui.unit.sp(12))
+                        Text("wip", color = Color(0xFF9AA0A6), fontSize = 12.sp)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("\u2022 ", color = Color(0xFF9AA0A6))
                         Text("macOS", color = Color(0xFF9AA0A6))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("wip", color = Color(0xFF9AA0A6), fontSize = androidx.compose.ui.unit.sp(12))
+                        Text("wip", color = Color(0xFF9AA0A6), fontSize = 12.sp)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("\u2022 ", color = Color(0xFF9AA0A6))
                         Text("Windows", color = Color(0xFF9AA0A6))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("wip", color = Color(0xFF9AA0A6), fontSize = androidx.compose.ui.unit.sp(12))
+                        Text("wip", color = Color(0xFF9AA0A6), fontSize = 12.sp)
                     }
                 }
             }

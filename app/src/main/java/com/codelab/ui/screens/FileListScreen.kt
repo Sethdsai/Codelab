@@ -38,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,7 +52,7 @@ import com.codelab.viewmodel.EditorViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileListScreen(viewModel: EditorViewModel, onBack: () -> Unit) {
-    val files by remember { viewModel.savedFiles }
+    val files by viewModel.savedFiles.collectAsState()
     var deleteTarget by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
@@ -106,7 +107,7 @@ fun FileListScreen(viewModel: EditorViewModel, onBack: () -> Unit) {
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacingBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(files) { fileName ->
                         FileItem(
@@ -154,6 +155,7 @@ fun FileListScreen(viewModel: EditorViewModel, onBack: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileItem(fileName: String, onOpen: () -> Unit, onDelete: () -> Unit) {
     val isHtml = fileName.endsWith(".html") || fileName.endsWith(".htm")

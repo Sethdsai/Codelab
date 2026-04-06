@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
 import com.codelab.ui.screens.EditorScreen
 import com.codelab.ui.screens.FileListScreen
 import com.codelab.ui.screens.NewFileDialog
@@ -32,22 +33,13 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-enum class Screen {
-    EDITOR,
-    FILES,
-    SETTINGS,
-    RICKROLL,
-    STORAGE
-}
-
 @Composable
 fun CodelabApp(viewModel: EditorViewModel) {
-    val showSettings by remember { viewModel.showSettings }
-    val showRickRoll by remember { viewModel.showRickRoll }
-    val showFileList by remember { viewModel.showFileList }
-    val showStorageInfo by remember { viewModel.showStorageInfo }
-
-    NewFileDialog(viewModel)
+    val showRickRoll by viewModel.showRickRoll.collectAsState()
+    val showSettings by viewModel.showSettings.collectAsState()
+    val showFileList by viewModel.showFileList.collectAsState()
+    val showStorageInfo by viewModel.showStorageInfo.collectAsState()
+    val showNewFileDialog by viewModel.showNewFileDialog.collectAsState()
 
     when {
         showRickRoll -> RickRollScreen(
@@ -66,5 +58,9 @@ fun CodelabApp(viewModel: EditorViewModel) {
             onBack = { viewModel.closeStorageInfo() }
         )
         else -> EditorScreen(viewModel = viewModel)
+    }
+
+    if (showNewFileDialog) {
+        NewFileDialog(viewModel = viewModel)
     }
 }

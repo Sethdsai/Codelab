@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -34,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,7 +50,7 @@ import com.codelab.viewmodel.EditorViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StorageScreen(viewModel: EditorViewModel, onBack: () -> Unit) {
-    val files by remember { viewModel.savedFiles }
+    val files by viewModel.savedFiles.collectAsState()
     val usedFormatted = viewModel.storageManager.getUsedSpaceFormatted()
     val freeFormatted = viewModel.storageManager.getFreeSpaceFormatted()
     val usagePercent = viewModel.storageManager.getUsagePercentage()
@@ -101,7 +103,7 @@ fun StorageScreen(viewModel: EditorViewModel, onBack: () -> Unit) {
                         Spacer(modifier = Modifier.height(20.dp))
 
                         LinearProgressIndicator(
-                            progress = { usagePercent / 100f },
+                            progress = usagePercent / 100f,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(10.dp),

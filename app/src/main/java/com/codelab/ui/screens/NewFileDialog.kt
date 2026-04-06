@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
@@ -30,9 +31,9 @@ import com.codelab.ui.theme.PythonOrange
 
 @Composable
 fun NewFileDialog(viewModel: com.codelab.viewmodel.EditorViewModel) {
-    val show by remember { viewModel.showNewFileDialog }
-    val fileName by remember { viewModel.newFileName }
-    val language by remember { viewModel.newFileLanguage }
+    val show by viewModel.showNewFileDialog.collectAsState()
+    val fileName by viewModel.newFileName.collectAsState()
+    val language by viewModel.newFileLanguage.collectAsState()
 
     if (show) {
         AlertDialog(

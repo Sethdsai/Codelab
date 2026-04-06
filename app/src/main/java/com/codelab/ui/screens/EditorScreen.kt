@@ -49,17 +49,18 @@ import com.codelab.ui.theme.HtmlGreen
 import com.codelab.ui.theme.LineNumber
 import com.codelab.ui.theme.PythonOrange
 import com.codelab.viewmodel.EditorViewModel
+import androidx.compose.runtime.collectAsState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(viewModel: EditorViewModel) {
-    val code by remember { viewModel.code }
-    val fileName by remember { viewModel.fileName }
-    val language by remember { viewModel.fileLanguage }
-    val isDark by remember { viewModel.isDarkEditor }
-    val pythonOutput by remember { viewModel.pythonOutput }
-    val fontSize by remember { viewModel.fontSize }
-    val storageUsed by remember { viewModel.storageManager.usedSpace }
+    val code by viewModel.code.collectAsState()
+    val fileName by viewModel.fileName.collectAsState()
+    val language by viewModel.fileLanguage.collectAsState()
+    val isDark by viewModel.isDarkEditor.collectAsState()
+    val pythonOutput by viewModel.pythonOutput.collectAsState()
+    val fontSize by viewModel.fontSize.collectAsState()
+    val storageUsed by viewModel.storageManager.usedSpace.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     val lineCount = code.count { it == '\n' } + 1
