@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 
+from b200_emu.backend import get_backend
 from b200_emu.device import get_device
 from b200_emu.specs import B200
 
@@ -20,6 +21,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     dev = get_device()
+    backend = get_backend()
     if args.format == "json":
         payload = {
             "name": B200.name,
@@ -32,13 +34,16 @@ def main(argv: list[str] | None = None) -> int:
             "peak_fp8_tflops": B200.peak_fp8_tflops,
             "peak_bf16_tflops": B200.peak_bf16_tflops,
             "emulated": True,
+            "backend": backend.name,
+            "backend_device": backend.device_desc,
             "hbm_used_bytes": dev.hbm.used,
             "kernels_launched": dev.stats.kernels_launched,
         }
         print(json.dumps(payload, indent=2))
     else:
         print(dev.summary())
-        print("\n[note] This is b200-emu, a software emulator — not a physical B200.")
+        print(f"\nCompute backend:   {backend.name}  ({backend.device_desc})")
+        print("[note] This is b200-emu, a software emulator — not a physical B200.")
     return 0
 
 

@@ -8,6 +8,16 @@ Architecturally-faithful software emulator of an NVIDIA **Blackwell B200**–cla
 ## What you get
 
 - **`B200Device`** — 208 SMs, 832 tensor cores, 60 MB L2, 192 GB HBM3e (logical), NVLink-5, public peak-throughput numbers (20 PFLOPS FP4, 10 PFLOPS FP8, 5 PFLOPS BF16, …).
+- **Pluggable compute backend** — the B200 architecture model stays on top; the actual math is dispatched to whatever silicon you have:
+
+  | Backend | Hardware | Expected speed vs. real B200 |
+  | --- | --- | --- |
+  | `numpy` (default) | CPU BLAS (OpenBLAS/MKL) | ~0.001–0.01% |
+  | `torch-cpu` | CPU via PyTorch | ~0.001–0.01% |
+  | `torch-mps` | Apple Silicon GPU | ~0.1–1% |
+  | `torch-cuda` | Any NVIDIA GPU | ~0.1–10% (GPU-dependent) |
+
+  Selection is automatic (CUDA > MPS > numpy) and can be forced with `B200_EMU_BACKEND=numpy|torch-cuda|torch-mps|torch-cpu`. On a consumer NVIDIA GPU (e.g. RTX 4090) the torch-cuda backend is typically **100–1000× faster than numpy** — still not a real B200, but enough to train non-trivial models.
 - **Memory hierarchy** — HBM3e global allocator, per-SM 228 KB unified L1/shared memory, register-file accounting, traffic stats.
 - **SM / warp scheduler** — 4 warp schedulers per SM, 32-thread warps, cycle + instruction accounting.
 - **5th-gen tensor cores** — warp-group MMA with FP8 (E4M3, E5M2), FP16, BF16, TF32, FP32, FP64. Low-precision inputs are properly quantized (E4M3 has max 448, round-to-nearest-even at mantissa resolution, etc.), then multiplied via BLAS with FP32 accumulate — matching Blackwell's datapath semantics.
@@ -104,7 +114,7 @@ NVIDIA B200  (Architecture: Blackwell, Compute 10.0)
 ## What this is not
 
 - **Not NVIDIA proprietary.** All modelled numbers come from public Blackwell disclosures (whitepaper, GTC keynote, datasheets). The internal microarchitecture, scheduler heuristics, RTL, etc. of NVIDIA's actual silicon are not and cannot be reproduced here.
-- **Not a real GPU.** It runs on your CPU. Real-B200 throughput (10 PFLOPS FP8) is ~10,000× your CPU's peak. If you want to train a big model, rent a real B200.
+- **Not as fast as a real B200.** Even on the `torch-cuda` backend with a top consumer GPU, you are ~10–1000× slower than a real B200. A physical B200 has 208 B transistors of tensor-math silicon running at 2 GHz with 8 TB/s HBM3e; no software emulator on other hardware closes that gap. If you need to train a big model, rent a real B200 on Lambda, RunPod, CoreWeave, etc.
 - **Not cycle-accurate.** We do rough instruction/cycle accounting for visibility, but it is not a substitute for GPGPU-Sim / Accel-Sim if you need performance prediction.
 
 ## Testing

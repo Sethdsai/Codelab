@@ -6,6 +6,7 @@ the same as a physical B200 — it is a simulation. Heavy compute is dispatched 
 host BLAS via numpy for usable speed.
 """
 
+from b200_emu.backend import get_backend, set_backend
 from b200_emu.device import B200Device, get_device
 from b200_emu.kernel import KernelContext, kernel, launch
 from b200_emu.memory import DeviceArray, to_device, to_host
@@ -16,9 +17,11 @@ __all__ = [
     "DType",
     "DeviceArray",
     "KernelContext",
+    "get_backend",
     "get_device",
     "kernel",
     "launch",
+    "set_backend",
     "tensor_core_mma",
     "to_device",
     "to_host",

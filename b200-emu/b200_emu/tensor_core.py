@@ -18,6 +18,8 @@ from enum import Enum
 
 import numpy as np
 
+from b200_emu.backend import get_backend
+
 
 class DType(str, Enum):
     FP4_E2M1 = "fp4_e2m1"
@@ -154,10 +156,12 @@ def tensor_core_mma(
         raise ValueError(f"shape mismatch: A is {a.shape}, B is {b.shape}")
 
     acc_np = np.float64 if acc_dtype is DType.FP64 else np.float32
+    acc_name = "fp64" if acc_dtype is DType.FP64 else "fp32"
 
     a_q = _cast_in(a, in_dtype).astype(acc_np, copy=False)
     b_q = _cast_in(b, in_dtype).astype(acc_np, copy=False)
-    d = a_q @ b_q
+    # Dispatch the actual MMA through the compute backend (numpy / torch-cuda / torch-mps).
+    d = get_backend().matmul(a_q, b_q, acc_dtype=acc_name)
     if c is not None:
         if c.shape != d.shape:
             raise ValueError(f"C shape {c.shape} != A@B shape {d.shape}")
