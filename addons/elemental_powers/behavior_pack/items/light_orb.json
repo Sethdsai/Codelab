@@ -15,7 +15,14 @@
       "minecraft:display_name": {
         "value": "Light Orb"
       },
-      "minecraft:max_stack_size": 16,
+      "minecraft:max_stack_size": 1,
+      "minecraft:hand_equipped": true,
+      "minecraft:use_animation": "drink",
+      "minecraft:food": {
+        "nutrition": 0,
+        "saturation_modifier": "low",
+        "can_always_eat": true
+      },
       "minecraft:glint": true
     }
   }

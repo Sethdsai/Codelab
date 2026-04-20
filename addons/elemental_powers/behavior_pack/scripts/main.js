@@ -1,15 +1,13 @@
 /*
- * Elemental Powers - Minecraft Bedrock Script API entry point.
+ * Elemental Powers v3 - Minecraft Bedrock Script API entry point.
  *
- * Triggers that open the element GUI:
- *   - Tap / right-click the "GUI Tool" item while holding it.
- *   - Type "!getmygui" or "getmygui" in chat (Bedrock eats "/"-prefixed text as
- *     slash commands before scripts can see them).
- *   - Run "/scriptevent elempower:gui" (works on any platform, all versions).
- *   - Run the custom slash command "/elempower:getmygui" (MC >= 1.21.80 only).
- *
- * Selecting an element grants its full scripted skill kit (no potion effects).
- * Seven elements (Fire, Water, Earth, Air, Lightning, Light, Dark) + Dark Scythe weapon.
+ * Flow:
+ *   1. Open the GUI (/getmygui chat fallback, !getmygui, /scriptevent, or GUI Tool item).
+ *   2. Pick an element -> receive ONE element orb.
+ *   3. Eat the orb -> dizzy awakening (nausea + slowness + blindness + shake) for a few
+ *      seconds, then the full element staff kit is granted.
+ *   4. The staff has EIGHT unique skills dispatched by stance/look/environment:
+ *        tap / sneak / look-up / look-down / airborne / in-water / sneak+up / sneak+down
  *
  * Description: uekermjheh on rblx
  */
@@ -18,113 +16,58 @@ import * as mc from "@minecraft/server";
 import { ActionFormData } from "@minecraft/server-ui";
 
 const { world, system, EntityDamageCause, EquipmentSlot, ItemStack } = mc;
-
 const NS = "elempower";
 
+// ---------------------------------------------------------------------------
+// element metadata
+// ---------------------------------------------------------------------------
 const ELEMENTS = [
-  {
-    id: "fire",
-    label: "Fire",
-    color: "c",
-    subtitle: "Fireball - Flame Nova",
-    icon: "textures/items/elem_fire_orb",
-    items: [`${NS}:fire_staff`, `${NS}:fire_orb`],
-  },
-  {
-    id: "water",
-    label: "Water",
-    color: "b",
-    subtitle: "Tidal Lance - Aqua Restore",
-    icon: "textures/items/elem_water_orb",
-    items: [`${NS}:water_staff`, `${NS}:water_orb`],
-  },
-  {
-    id: "earth",
-    label: "Earth",
-    color: "2",
-    subtitle: "Stone Spike - Quake Stomp",
-    icon: "textures/items/elem_earth_orb",
-    items: [`${NS}:earth_staff`, `${NS}:earth_orb`],
-  },
-  {
-    id: "air",
-    label: "Air",
-    color: "f",
-    subtitle: "Gust Dash - Sky Leap",
-    icon: "textures/items/elem_air_orb",
-    items: [`${NS}:air_staff`, `${NS}:air_orb`],
-  },
-  {
-    id: "lightning",
-    label: "Lightning",
-    color: "e",
-    subtitle: "Thunder Strike - Chain Lightning",
-    icon: "textures/items/elem_lightning_orb",
-    items: [`${NS}:lightning_staff`, `${NS}:lightning_orb`],
-  },
-  {
-    id: "light",
-    label: "Light",
-    color: "g",
-    subtitle: "Solar Beam - Radiant Pulse",
-    icon: "textures/items/elem_light_orb",
-    items: [`${NS}:light_staff`, `${NS}:light_orb`],
-  },
-  {
-    id: "dark",
-    label: "Dark",
-    color: "5",
-    subtitle: "Void Grasp - Shadow Step - Dark Scythe",
-    icon: "textures/items/elem_dark_orb",
-    items: [`${NS}:dark_staff`, `${NS}:dark_orb`, `${NS}:dark_scythe`],
-  },
+  { id: "fire", label: "Fire", color: "c", subtitle: "8 flame arts", icon: "textures/items/elem_fire_orb" },
+  { id: "water", label: "Water", color: "b", subtitle: "8 tide arts", icon: "textures/items/elem_water_orb" },
+  { id: "earth", label: "Earth", color: "2", subtitle: "8 stone arts", icon: "textures/items/elem_earth_orb" },
+  { id: "air", label: "Air", color: "f", subtitle: "8 gale arts", icon: "textures/items/elem_air_orb" },
+  { id: "lightning", label: "Lightning", color: "e", subtitle: "8 storm arts", icon: "textures/items/elem_lightning_orb" },
+  { id: "light", label: "Light", color: "g", subtitle: "8 radiant arts", icon: "textures/items/elem_light_orb" },
+  { id: "dark", label: "Dark", color: "5", subtitle: "8 shadow arts + Dark Scythe", icon: "textures/items/elem_dark_orb" },
 ];
+
+const ELEMENT_BY_ID = Object.fromEntries(ELEMENTS.map((e) => [e.id, e]));
+
+const ORB_TO_ELEMENT = Object.fromEntries(ELEMENTS.map((e) => [`${NS}:${e.id}_orb`, e.id]));
+const ELEMENT_TO_STAFF = Object.fromEntries(ELEMENTS.map((e) => [e.id, `${NS}:${e.id}_staff`]));
 
 // ---------------------------------------------------------------------------
 // cooldowns (in-memory)
 // ---------------------------------------------------------------------------
-const COOLDOWN_TICKS = {
-  [`${NS}:fire_staff`]: 20,
-  [`${NS}:water_staff`]: 30,
-  [`${NS}:earth_staff`]: 30,
-  [`${NS}:air_staff`]: 15,
-  [`${NS}:lightning_staff`]: 40,
-  [`${NS}:light_staff`]: 30,
-  [`${NS}:dark_staff`]: 35,
-  [`${NS}:dark_scythe`]: 25,
-  [`${NS}:gui_tool`]: 6,
-};
-
 /** @type {Map<string, Map<string, number>>} */
 const COOLDOWNS = new Map();
 
-function checkCooldown(player, item) {
-  const now = system.currentTick;
-  const ticks = COOLDOWN_TICKS[item] ?? 20;
+function getCooldown(player, key) {
+  const perPlayer = COOLDOWNS.get(player.id);
+  return perPlayer ? perPlayer.get(key) : undefined;
+}
+
+function setCooldown(player, key) {
   let perPlayer = COOLDOWNS.get(player.id);
-  if (!perPlayer) {
-    perPlayer = new Map();
-    COOLDOWNS.set(player.id, perPlayer);
-  }
-  const last = perPlayer.get(item);
+  if (!perPlayer) { perPlayer = new Map(); COOLDOWNS.set(player.id, perPlayer); }
+  perPlayer.set(key, system.currentTick);
+}
+
+function checkCooldownTicks(player, key, ticks) {
+  const last = getCooldown(player, key);
+  const now = system.currentTick;
   if (typeof last === "number" && now - last < ticks) {
     const remaining = ((ticks - (now - last)) / 20).toFixed(1);
     tryActionBar(player, `§c§lCooldown §7${remaining}s`);
     return false;
   }
-  perPlayer.set(item, now);
+  setCooldown(player, key);
   return true;
 }
 
-function tryActionBar(player, text) {
-  try { player.onScreenDisplay.setActionBar(text); } catch (e) { /* */ }
-}
+function tryActionBar(player, text) { try { player.onScreenDisplay.setActionBar(text); } catch (e) { /* */ } }
 
-try {
-  world.afterEvents.playerLeave.subscribe((ev) => {
-    COOLDOWNS.delete(ev.playerId);
-  });
-} catch (e) { /* old API */ }
+try { world.afterEvents.playerLeave.subscribe((ev) => { COOLDOWNS.delete(ev.playerId); }); } catch (e) { /* */ }
 
 // ---------------------------------------------------------------------------
 // vec helpers
@@ -138,9 +81,7 @@ const vHoriz = (v) => vNorm({ x: v.x, y: 0, z: v.z });
 function raycastEntity(player, maxDistance) {
   try {
     const hits = player.getEntitiesFromViewDirection({ maxDistance });
-    for (const h of hits || []) {
-      if (h && h.entity && h.entity.id !== player.id) return h.entity;
-    }
+    for (const h of hits || []) if (h && h.entity && h.entity.id !== player.id) return h.entity;
   } catch (e) { /* */ }
   return undefined;
 }
@@ -161,27 +102,21 @@ function entitiesNear(dimension, origin, radius, excludeId) {
       maxDistance: radius,
       excludeTypes: ["minecraft:item", "minecraft:xp_orb"],
     }).filter((e) => e && e.id !== excludeId);
-  } catch (e) {
-    return [];
-  }
+  } catch (e) { return []; }
 }
 
 function entitiesInCone(player, origin, forward, maxDistance, cosAngle) {
-  const candidates = entitiesNear(player.dimension, origin, maxDistance, player.id);
-  const results = [];
-  for (const e of candidates) {
+  const out = [];
+  for (const e of entitiesNear(player.dimension, origin, maxDistance, player.id)) {
     const to = { x: e.location.x - origin.x, y: e.location.y - origin.y, z: e.location.z - origin.z };
     if (vLen(to) < 0.01) continue;
     const n = vNorm(to);
-    const dot = n.x * forward.x + n.y * forward.y + n.z * forward.z;
-    if (dot >= cosAngle) results.push(e);
+    if (n.x * forward.x + n.y * forward.y + n.z * forward.z >= cosAngle) out.push(e);
   }
-  return results;
+  return out;
 }
 
-function safeParticle(dimension, id, loc) {
-  try { dimension.spawnParticle(id, loc); } catch (e) { /* */ }
-}
+function safeParticle(dimension, id, loc) { try { dimension.spawnParticle(id, loc); } catch (e) { /* */ } }
 
 function healPlayer(player, amount) {
   try {
@@ -202,210 +137,849 @@ function damage(entity, amount, player, cause) {
   } catch (e) { /* */ }
 }
 
+function applyKnock(entity, dirX, dirZ, hStrength, vStrength) {
+  try { entity.applyKnockback(dirX, dirZ, hStrength, vStrength); } catch (e) { /* */ }
+}
+
+function tryImpulse(entity, v) { try { entity.applyImpulse(v); } catch (e) { /* */ } }
+
+function addFx(player, effect, ticks, amp) {
+  try { player.addEffect(effect, ticks, { amplifier: amp ?? 0, showParticles: false }); } catch (e) { /* */ }
+}
+
+function removeFx(player, effect) {
+  try { player.removeEffect(effect); } catch (e) { /* */ }
+}
+
+function runCmd(source, cmd) {
+  try { source.runCommand(cmd); } catch (e) { /* */ }
+}
+
+function isInWater(player) {
+  try { if (typeof player.isInWater === "boolean") return player.isInWater; } catch (e) { /* */ }
+  return false;
+}
+
+function isOnGround(player) {
+  try { if (typeof player.isOnGround === "boolean") return player.isOnGround; } catch (e) { /* */ }
+  return true;
+}
+
 // ---------------------------------------------------------------------------
-// skills
+// input classification -> 8 skill slots per element
 // ---------------------------------------------------------------------------
-function castFire(player) {
-  const dim = player.dimension;
-  const head = player.getHeadLocation();
+function classifyInput(player) {
   const view = player.getViewDirection();
-  if (player.isSneaking) {
-    for (let a = 0; a < Math.PI * 2; a += Math.PI / 24) {
-      const p = vAdd(player.location, { x: Math.cos(a) * 3, y: 0.6, z: Math.sin(a) * 3 });
-      safeParticle(dim, "minecraft:basic_flame_particle", p);
-    }
-    for (const v of entitiesNear(dim, player.location, 5, player.id)) {
-      damage(v, 10, player, EntityDamageCause.fire);
-      try {
-        const dir = vNorm({ x: v.location.x - player.location.x, y: 0, z: v.location.z - player.location.z });
-        v.applyKnockback(dir.x, dir.z, 1.6, 0.6);
-      } catch (e) { /* */ }
-    }
-    try { player.playSound("mob.blaze.shoot"); } catch (e) { /* */ }
-    tryActionBar(player, "§c§lFlame Nova §7unleashed");
-  } else {
-    const spawnPos = vAdd(head, vScale(view, 1.2));
+  const sneak = player.isSneaking;
+  const up = view.y > 0.7;
+  const down = view.y < -0.7;
+  if (sneak && up) return "sneak_up";
+  if (sneak && down) return "sneak_down";
+  if (sneak) return "sneak";
+  if (up) return "up";
+  if (isInWater(player)) return "water";
+  if (!isOnGround(player)) return "air";
+  if (down) return "down";
+  return "tap";
+}
+
+const SKILL_COOLDOWNS = {
+  tap: 14, sneak: 28, up: 45, down: 30, air: 25, water: 30, sneak_up: 120, sneak_down: 70,
+};
+
+function dispatchStaff(player, itemId, handlers) {
+  const mode = classifyInput(player);
+  const cdKey = `${itemId}:${mode}`;
+  const ticks = SKILL_COOLDOWNS[mode] ?? 20;
+  if (!checkCooldownTicks(player, cdKey, ticks)) return;
+  const fn = handlers[mode] || handlers.tap;
+  try { fn(player); } catch (e) {
+    try { console.warn(`skill error ${itemId}/${mode}: ${e}`); } catch (_) { /* */ }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// FIRE - 8 skills
+// ---------------------------------------------------------------------------
+const fireSkills = {
+  tap(player) {
+    const dim = player.dimension;
+    const head = player.getHeadLocation();
+    const view = player.getViewDirection();
     let ok = false;
     try {
-      const fb = dim.spawnEntity("minecraft:fireball", spawnPos);
+      const fb = dim.spawnEntity("minecraft:fireball", vAdd(head, vScale(view, 1.2)));
       fb.applyImpulse(vScale(view, 2.5));
       ok = true;
     } catch (e) { /* */ }
     if (!ok) {
-      for (let i = 1; i <= 20; i++) {
-        safeParticle(dim, "minecraft:basic_flame_particle", vAdd(head, vScale(view, i)));
-      }
-      const t = raycastEntity(player, 32);
-      if (t) damage(t, 8, player, EntityDamageCause.fire);
+      for (let i = 1; i <= 24; i++) safeParticle(dim, "minecraft:basic_flame_particle", vAdd(head, vScale(view, i)));
+      const t = raycastEntity(player, 40);
+      if (t) damage(t, 10, player, EntityDamageCause.fire);
     }
     try { player.playSound("mob.ghast.fireball"); } catch (e) { /* */ }
-    tryActionBar(player, "§c§lFireball §7launched");
-  }
-}
+    tryActionBar(player, "§c§lFireball");
+  },
+  sneak(player) {
+    const dim = player.dimension;
+    for (let r = 1; r <= 4; r++) {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / (6 * r)) {
+        safeParticle(dim, "minecraft:basic_flame_particle",
+          vAdd(player.location, { x: Math.cos(a) * r, y: 0.4, z: Math.sin(a) * r }));
+      }
+    }
+    for (const v of entitiesNear(dim, player.location, 5, player.id)) {
+      damage(v, 12, player, EntityDamageCause.fire);
+      const d = vNorm({ x: v.location.x - player.location.x, y: 0, z: v.location.z - player.location.z });
+      applyKnock(v, d.x, d.z, 1.6, 0.6);
+    }
+    try { player.playSound("mob.blaze.shoot"); } catch (e) { /* */ }
+    tryActionBar(player, "§c§lFlame Nova");
+  },
+  up(player) {
+    const dim = player.dimension;
+    const aim = raycastBlockLocation(player, 35);
+    for (let i = 0; i < 5; i++) {
+      const spot = vAdd(aim, { x: (Math.random() - 0.5) * 6, y: 10 + i * 2, z: (Math.random() - 0.5) * 6 });
+      for (let k = 0; k < 10; k++) {
+        safeParticle(dim, "minecraft:basic_flame_particle",
+          vAdd(spot, { x: 0, y: -k, z: 0 }));
+      }
+      const impact = vAdd(aim, { x: (Math.random() - 0.5) * 6, y: 0, z: (Math.random() - 0.5) * 6 });
+      for (const v of entitiesNear(dim, impact, 3, player.id)) {
+        damage(v, 7, player, EntityDamageCause.fire);
+      }
+    }
+    try { player.playSound("random.explode"); } catch (e) { /* */ }
+    tryActionBar(player, "§c§lMeteor Rain");
+  },
+  down(player) {
+    const dim = player.dimension;
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 12) {
+      const p = vAdd(player.location, { x: Math.cos(a) * 3, y: 0.1, z: Math.sin(a) * 3 });
+      safeParticle(dim, "minecraft:basic_flame_particle", p);
+    }
+    for (const v of entitiesNear(dim, player.location, 4, player.id)) {
+      damage(v, 8, player, EntityDamageCause.fire);
+      applyKnock(v, 0, 0, 0, 0.8);
+    }
+    runCmd(player, `fill ~-1 ~-1 ~-1 ~1 ~-1 ~1 fire 0 replace air`);
+    tryActionBar(player, "§c§lLava Pool");
+  },
+  air(player) {
+    const view = player.getViewDirection();
+    tryImpulse(player, { x: view.x * 3, y: 0.2, z: view.z * 3 });
+    for (let i = 1; i <= 14; i++) safeParticle(player.dimension, "minecraft:basic_flame_particle", vAdd(player.location, vScale(view, i)));
+    const t = raycastEntity(player, 8);
+    if (t) damage(t, 9, player, EntityDamageCause.fire);
+    try { player.playSound("mob.ghast.fireball"); } catch (e) { /* */ }
+    tryActionBar(player, "§c§lFire Dash");
+  },
+  water(player) {
+    const dim = player.dimension;
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 16) {
+      safeParticle(dim, "minecraft:water_splash_particle",
+        vAdd(player.location, { x: Math.cos(a) * 4, y: 1, z: Math.sin(a) * 4 }));
+    }
+    for (const v of entitiesNear(dim, player.location, 5, player.id)) {
+      damage(v, 11, player, EntityDamageCause.magic);
+      const d = vNorm({ x: v.location.x - player.location.x, y: 0.4, z: v.location.z - player.location.z });
+      applyKnock(v, d.x, d.z, 1.8, 0.8);
+    }
+    tryActionBar(player, "§c§lSteam Burst");
+  },
+  sneak_up(player) {
+    const dim = player.dimension;
+    const base = player.location;
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+      const column = vAdd(base, { x: Math.cos(a) * 4, y: 0, z: Math.sin(a) * 4 });
+      for (let y = 0; y < 6; y++) {
+        safeParticle(dim, "minecraft:basic_flame_particle", vAdd(column, { x: 0, y, z: 0 }));
+      }
+      for (const v of entitiesNear(dim, column, 2, player.id)) {
+        damage(v, 14, player, EntityDamageCause.fire);
+      }
+    }
+    try { player.playSound("mob.ghast.scream"); } catch (e) { /* */ }
+    tryActionBar(player, "§c§l§nInferno");
+  },
+  sneak_down(player) {
+    const dim = player.dimension;
+    tryImpulse(player, { x: 0, y: 1.6, z: 0 });
+    system.runTimeout(() => {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 18) {
+        safeParticle(dim, "minecraft:basic_flame_particle",
+          vAdd(player.location, { x: Math.cos(a) * 5, y: 0.2, z: Math.sin(a) * 5 }));
+      }
+      for (const v of entitiesNear(dim, player.location, 6, player.id)) {
+        damage(v, 18, player, EntityDamageCause.fire);
+        applyKnock(v, 0, 0, 0, 1.2);
+      }
+      try { player.playSound("random.explode"); } catch (e) { /* */ }
+    }, 20);
+    tryActionBar(player, "§c§l§nPhoenix Dive");
+  },
+};
 
-function castWater(player) {
-  const dim = player.dimension;
-  const head = player.getHeadLocation();
-  const view = player.getViewDirection();
-  if (player.isSneaking) {
+// ---------------------------------------------------------------------------
+// WATER - 8 skills
+// ---------------------------------------------------------------------------
+const waterSkills = {
+  tap(player) {
+    const dim = player.dimension;
+    const head = player.getHeadLocation();
+    const view = player.getViewDirection();
+    for (let i = 1; i <= 20; i++) safeParticle(dim, "minecraft:water_splash_particle", vAdd(head, vScale(view, i)));
+    for (const v of entitiesInCone(player, head, vNorm(view), 20, Math.cos(Math.PI / 14))) {
+      damage(v, 10, player, EntityDamageCause.magic);
+      applyKnock(v, view.x, view.z, 1.3, 0.3);
+    }
+    tryActionBar(player, "§b§lTidal Lance");
+  },
+  sneak(player) {
     healPlayer(player, 20);
     for (let i = 0; i < 24; i++) {
       const a = (Math.PI * 2 * i) / 24;
-      const p = vAdd(player.location, { x: Math.cos(a) * 2, y: 1 + Math.sin(a) * 0.5, z: Math.sin(a) * 2 });
-      safeParticle(dim, "minecraft:water_splash_particle", p);
+      safeParticle(player.dimension, "minecraft:water_splash_particle",
+        vAdd(player.location, { x: Math.cos(a) * 2, y: 1 + Math.sin(a) * 0.5, z: Math.sin(a) * 2 }));
     }
     try { player.playSound("random.splash"); } catch (e) { /* */ }
-    tryActionBar(player, "§b§lAqua Restore §7full HP");
-  } else {
-    for (let i = 1; i <= 18; i++) {
-      safeParticle(dim, "minecraft:water_splash_particle", vAdd(head, vScale(view, i)));
+    tryActionBar(player, "§b§lAqua Restore");
+  },
+  up(player) {
+    const dim = player.dimension;
+    for (const v of entitiesNear(dim, player.location, 10, player.id)) {
+      if (v.typeId === "minecraft:player") { healPlayer(v, 8); continue; }
+      damage(v, 6, player, EntityDamageCause.magic);
     }
-    const victims = entitiesInCone(player, head, vNorm(view), 18, Math.cos(Math.PI / 14));
-    for (const v of victims) {
-      damage(v, 9, player, EntityDamageCause.magic);
-      try { v.applyKnockback(view.x, view.z, 1.2, 0.2); } catch (e) { /* */ }
+    for (let i = 0; i < 20; i++) {
+      const a = Math.random() * Math.PI * 2;
+      safeParticle(dim, "minecraft:water_splash_particle",
+        vAdd(player.location, { x: Math.cos(a) * 5, y: 4 + Math.random() * 2, z: Math.sin(a) * 5 }));
     }
-    tryActionBar(player, "§b§lTidal Lance");
-  }
-}
-
-function castEarth(player) {
-  const dim = player.dimension;
-  const view = player.getViewDirection();
-  if (player.isSneaking) {
-    for (let a = 0; a < Math.PI * 2; a += Math.PI / 18) {
-      const p = vAdd(player.location, { x: Math.cos(a) * 4, y: 0.1, z: Math.sin(a) * 4 });
-      safeParticle(dim, "minecraft:basic_crit_particle", p);
-    }
+    tryActionBar(player, "§b§lRain Heal");
+  },
+  down(player) {
+    const dim = player.dimension;
     for (const v of entitiesNear(dim, player.location, 6, player.id)) {
-      damage(v, 11, player, EntityDamageCause.entityAttack);
-      try { v.applyKnockback(0, 0, 0, 1.2); } catch (e) { /* */ }
+      const pullPos = vAdd(player.location, { x: 0, y: 0.5, z: 0 });
+      try { v.teleport(pullPos, { dimension: dim }); } catch (e) { /* */ }
+      damage(v, 9, player, EntityDamageCause.drowning || EntityDamageCause.magic);
     }
-    try { player.playSound("dig.stone"); } catch (e) { /* */ }
-    tryActionBar(player, "§2§lQuake Stomp");
-  } else {
-    for (let i = 1; i <= 8; i++) {
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 16) {
+      safeParticle(dim, "minecraft:water_splash_particle",
+        vAdd(player.location, { x: Math.cos(a) * 3, y: 0.5, z: Math.sin(a) * 3 }));
+    }
+    tryActionBar(player, "§b§lWhirlpool");
+  },
+  air(player) {
+    const view = player.getViewDirection();
+    tryImpulse(player, { x: view.x * 2, y: -0.6, z: view.z * 2 });
+    for (let i = 1; i <= 10; i++) safeParticle(player.dimension, "minecraft:water_splash_particle", vAdd(player.location, vScale(view, i)));
+    tryActionBar(player, "§b§lWater Slide");
+  },
+  water(player) {
+    const dim = player.dimension;
+    healPlayer(player, 6);
+    addFx(player, "speed", 80, 2);
+    addFx(player, "water_breathing", 200, 0);
+    for (let i = 0; i < 12; i++) {
+      safeParticle(dim, "minecraft:water_splash_particle",
+        vAdd(player.location, { x: (Math.random() - 0.5) * 2, y: Math.random() * 2, z: (Math.random() - 0.5) * 2 }));
+    }
+    tryActionBar(player, "§b§lTide Blessing");
+  },
+  sneak_up(player) {
+    const dim = player.dimension;
+    for (let r = 1; r <= 9; r++) {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / (4 * r)) {
+        safeParticle(dim, "minecraft:water_splash_particle",
+          vAdd(player.location, { x: Math.cos(a) * r, y: 1, z: Math.sin(a) * r }));
+      }
+    }
+    for (const v of entitiesNear(dim, player.location, 11, player.id)) {
+      damage(v, 18, player, EntityDamageCause.magic);
+      const d = vNorm({ x: v.location.x - player.location.x, y: 0, z: v.location.z - player.location.z });
+      applyKnock(v, d.x, d.z, 2.8, 0.8);
+    }
+    healPlayer(player, 10);
+    try { player.playSound("ambient.weather.rain"); } catch (e) { /* */ }
+    tryActionBar(player, "§b§l§nTsunami");
+  },
+  sneak_down(player) {
+    const dim = player.dimension;
+    for (const v of entitiesNear(dim, player.location, 7, player.id)) {
+      damage(v, 10, player, EntityDamageCause.magic);
+      addFx(v, "slowness", 100, 3);
+    }
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 16) {
+      safeParticle(dim, "minecraft:snowflake",
+        vAdd(player.location, { x: Math.cos(a) * 4, y: 0.8, z: Math.sin(a) * 4 }));
+    }
+    tryActionBar(player, "§b§l§nFrost Nova");
+  },
+};
+
+// ---------------------------------------------------------------------------
+// EARTH - 8 skills
+// ---------------------------------------------------------------------------
+const earthSkills = {
+  tap(player) {
+    const dim = player.dimension;
+    const view = player.getViewDirection();
+    for (let i = 1; i <= 9; i++) {
       const step = vAdd(player.location, vScale(vHoriz(view), i));
       safeParticle(dim, "minecraft:basic_crit_particle", { x: step.x, y: step.y + 1, z: step.z });
       for (const v of entitiesNear(dim, step, 1.6, player.id)) {
-        damage(v, 7, player, EntityDamageCause.entityAttack);
-        try { v.applyKnockback(0, 0, 0, 0.9); } catch (e) { /* */ }
+        damage(v, 8, player, EntityDamageCause.entityAttack);
+        applyKnock(v, 0, 0, 0, 1.0);
       }
     }
+    try { player.playSound("dig.stone"); } catch (e) { /* */ }
     tryActionBar(player, "§2§lStone Spike");
-  }
-}
+  },
+  sneak(player) {
+    const dim = player.dimension;
+    for (let r = 1; r <= 4; r++) {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / (6 * r)) {
+        safeParticle(dim, "minecraft:basic_crit_particle",
+          vAdd(player.location, { x: Math.cos(a) * r, y: 0.1, z: Math.sin(a) * r }));
+      }
+    }
+    for (const v of entitiesNear(dim, player.location, 6, player.id)) {
+      damage(v, 12, player, EntityDamageCause.entityAttack);
+      applyKnock(v, 0, 0, 0, 1.3);
+    }
+    try { player.playSound("dig.stone"); } catch (e) { /* */ }
+    tryActionBar(player, "§2§lQuake Stomp");
+  },
+  up(player) {
+    const dim = player.dimension;
+    const target = raycastEntity(player, 32);
+    if (target) {
+      damage(target, 16, player, EntityDamageCause.entityAttack);
+      applyKnock(target, 0, 0, 0, 1.8);
+      for (let i = 0; i < 8; i++) safeParticle(dim, "minecraft:basic_crit_particle",
+        vAdd(target.location, { x: (Math.random() - 0.5) * 1, y: i * 0.5, z: (Math.random() - 0.5) * 1 }));
+    }
+    tryActionBar(player, "§2§lBoulder Toss");
+  },
+  down(player) {
+    const dim = player.dimension;
+    const view = player.getViewDirection();
+    const fwd = vHoriz(view);
+    for (let i = 1; i <= 10; i++) {
+      const p = vAdd(player.location, vScale(fwd, i));
+      safeParticle(dim, "minecraft:basic_crit_particle", p);
+      for (const v of entitiesNear(dim, p, 1.2, player.id)) {
+        damage(v, 7, player, EntityDamageCause.entityAttack);
+        applyKnock(v, 0, 0, 0, 1.2);
+      }
+    }
+    tryActionBar(player, "§2§lFissure");
+  },
+  air(player) {
+    const dim = player.dimension;
+    tryImpulse(player, { x: 0, y: -2.2, z: 0 });
+    system.runTimeout(() => {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 12) {
+        safeParticle(dim, "minecraft:basic_crit_particle",
+          vAdd(player.location, { x: Math.cos(a) * 4, y: 0.2, z: Math.sin(a) * 4 }));
+      }
+      for (const v of entitiesNear(dim, player.location, 5, player.id)) {
+        damage(v, 14, player, EntityDamageCause.entityAttack);
+        applyKnock(v, 0, 0, 0, 1.4);
+      }
+      try { player.playSound("dig.stone"); } catch (e) { /* */ }
+    }, 10);
+    tryActionBar(player, "§2§lEarth Fall");
+  },
+  water(player) {
+    const dim = player.dimension;
+    for (const v of entitiesNear(dim, player.location, 5, player.id)) {
+      damage(v, 9, player, EntityDamageCause.entityAttack);
+      addFx(v, "slowness", 120, 4);
+    }
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 12) {
+      safeParticle(dim, "minecraft:basic_crit_particle",
+        vAdd(player.location, { x: Math.cos(a) * 3, y: 0.5, z: Math.sin(a) * 3 }));
+    }
+    tryActionBar(player, "§2§lMud Trap");
+  },
+  sneak_up(player) {
+    const dim = player.dimension;
+    const view = player.getViewDirection();
+    for (let n = 0; n < 6; n++) {
+      const spot = vAdd(player.location, vScale(vHoriz(view), 3 + n * 1.5));
+      for (let y = 0; y < 5; y++) {
+        safeParticle(dim, "minecraft:basic_crit_particle", vAdd(spot, { x: 0, y, z: 0 }));
+      }
+      for (const v of entitiesNear(dim, spot, 2, player.id)) {
+        damage(v, 10, player, EntityDamageCause.entityAttack);
+        applyKnock(v, 0, 0, 0, 1.1);
+      }
+    }
+    try { player.playSound("dig.stone"); } catch (e) { /* */ }
+    tryActionBar(player, "§2§l§nMountain Rise");
+  },
+  sneak_down(player) {
+    const dim = player.dimension;
+    for (let r = 1; r <= 7; r++) {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / (3 * r)) {
+        safeParticle(dim, "minecraft:basic_crit_particle",
+          vAdd(player.location, { x: Math.cos(a) * r, y: 0.1, z: Math.sin(a) * r }));
+      }
+    }
+    for (const v of entitiesNear(dim, player.location, 9, player.id)) {
+      damage(v, 20, player, EntityDamageCause.entityAttack);
+      applyKnock(v, 0, 0, 0, 1.8);
+    }
+    try { player.playSound("dig.stone"); } catch (e) { /* */ }
+    tryActionBar(player, "§2§l§nEarthquake");
+  },
+};
 
-function castAir(player) {
-  const view = player.getViewDirection();
-  if (player.isSneaking) {
-    try { player.applyImpulse({ x: view.x * 0.8, y: 1.6, z: view.z * 0.8 }); } catch (e) { /* */ }
+// ---------------------------------------------------------------------------
+// AIR - 8 skills
+// ---------------------------------------------------------------------------
+const airSkills = {
+  tap(player) {
+    const view = player.getViewDirection();
+    tryImpulse(player, { x: view.x * 2.4, y: Math.max(0.3, view.y * 1.2), z: view.z * 2.4 });
+    for (let i = 1; i <= 12; i++) safeParticle(player.dimension, "minecraft:cloud", vAdd(player.location, vScale(view, i)));
+    tryActionBar(player, "§f§lGust Dash");
+  },
+  sneak(player) {
+    tryImpulse(player, { x: 0, y: 2.0, z: 0 });
     for (let i = 0; i < 12; i++) {
-      const p = vAdd(player.location, { x: (Math.random() - 0.5) * 2, y: i * 0.3, z: (Math.random() - 0.5) * 2 });
-      safeParticle(player.dimension, "minecraft:cloud", p);
+      safeParticle(player.dimension, "minecraft:cloud",
+        vAdd(player.location, { x: (Math.random() - 0.5) * 2, y: i * 0.3, z: (Math.random() - 0.5) * 2 }));
     }
     tryActionBar(player, "§f§lSky Leap");
-  } else {
-    try { player.applyImpulse({ x: view.x * 2.4, y: Math.max(0.3, view.y * 1.2), z: view.z * 2.4 }); } catch (e) { /* */ }
-    for (let i = 1; i <= 12; i++) {
-      safeParticle(player.dimension, "minecraft:cloud", vAdd(player.location, vScale(view, i)));
+  },
+  up(player) {
+    const dim = player.dimension;
+    for (const v of entitiesNear(dim, player.location, 8, player.id)) {
+      const inDir = vNorm({ x: player.location.x - v.location.x, y: 0, z: player.location.z - v.location.z });
+      applyKnock(v, inDir.x, inDir.z, 0.8, 1.6);
+      damage(v, 8, player, EntityDamageCause.magic);
     }
-    tryActionBar(player, "§f§lGust Dash");
-  }
-}
+    for (let i = 0; i < 24; i++) {
+      const a = Math.random() * Math.PI * 2;
+      safeParticle(dim, "minecraft:cloud",
+        vAdd(player.location, { x: Math.cos(a) * 3, y: i * 0.2, z: Math.sin(a) * 3 }));
+    }
+    tryActionBar(player, "§f§lTornado");
+  },
+  down(player) {
+    const dim = player.dimension;
+    const view = player.getViewDirection();
+    const fwd = vHoriz(view);
+    for (let i = 1; i <= 10; i++) {
+      const p = vAdd(player.location, vScale(fwd, i));
+      safeParticle(dim, "minecraft:cloud", p);
+      for (const v of entitiesNear(dim, p, 1.3, player.id)) {
+        damage(v, 8, player, EntityDamageCause.magic);
+        applyKnock(v, fwd.x, fwd.z, 2.2, -0.2);
+      }
+    }
+    tryActionBar(player, "§f§lPressure Wave");
+  },
+  air(player) {
+    tryImpulse(player, { x: 0, y: 0.8, z: 0 });
+    for (let i = 0; i < 10; i++) {
+      safeParticle(player.dimension, "minecraft:cloud",
+        vAdd(player.location, { x: (Math.random() - 0.5) * 1.5, y: (Math.random() - 0.5) * 1.5, z: (Math.random() - 0.5) * 1.5 }));
+    }
+    tryActionBar(player, "§f§lHover");
+  },
+  water(player) {
+    const dim = player.dimension;
+    for (const v of entitiesNear(dim, player.location, 4, player.id)) {
+      damage(v, 7, player, EntityDamageCause.magic);
+      const d = vNorm({ x: v.location.x - player.location.x, y: 0.5, z: v.location.z - player.location.z });
+      applyKnock(v, d.x, d.z, 1.5, 0.8);
+    }
+    addFx(player, "water_breathing", 200, 0);
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 12) {
+      safeParticle(dim, "minecraft:cloud",
+        vAdd(player.location, { x: Math.cos(a) * 2, y: 0.8, z: Math.sin(a) * 2 }));
+    }
+    tryActionBar(player, "§f§lAir Bubble");
+  },
+  sneak_up(player) {
+    const dim = player.dimension;
+    for (const v of entitiesNear(dim, player.location, 10, player.id)) {
+      const inDir = vNorm({ x: player.location.x - v.location.x, y: 0, z: player.location.z - v.location.z });
+      applyKnock(v, inDir.x, inDir.z, 1.8, 2.2);
+      damage(v, 14, player, EntityDamageCause.magic);
+    }
+    for (let i = 0; i < 40; i++) {
+      const a = (Math.PI * 2 * i) / 20;
+      safeParticle(dim, "minecraft:cloud",
+        vAdd(player.location, { x: Math.cos(a) * 4, y: (i / 40) * 8, z: Math.sin(a) * 4 }));
+    }
+    tryActionBar(player, "§f§l§nHurricane");
+  },
+  sneak_down(player) {
+    const dim = player.dimension;
+    const view = player.getViewDirection();
+    tryImpulse(player, { x: view.x * 2, y: -2.4, z: view.z * 2 });
+    system.runTimeout(() => {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 10) {
+        safeParticle(dim, "minecraft:cloud",
+          vAdd(player.location, { x: Math.cos(a) * 5, y: 0.2, z: Math.sin(a) * 5 }));
+      }
+      for (const v of entitiesNear(dim, player.location, 6, player.id)) {
+        damage(v, 16, player, EntityDamageCause.magic);
+        const d = vNorm({ x: v.location.x - player.location.x, y: 0, z: v.location.z - player.location.z });
+        applyKnock(v, d.x, d.z, 2.2, 0.3);
+      }
+    }, 10);
+    tryActionBar(player, "§f§l§nWind Slam");
+  },
+};
 
-function castLightning(player) {
-  const dim = player.dimension;
-  if (player.isSneaking) {
-    const near = entitiesNear(dim, player.location, 18, player.id).slice(0, 5);
-    for (const t of near) {
-      try { dim.spawnEntity("minecraft:lightning_bolt", t.location); } catch (e) { /* */ }
-      damage(t, 8, player, EntityDamageCause.lightning);
-    }
-    tryActionBar(player, `§e§lChain Lightning §7 ${near.length}`);
-  } else {
+// ---------------------------------------------------------------------------
+// LIGHTNING - 8 skills
+// ---------------------------------------------------------------------------
+const lightningSkills = {
+  tap(player) {
     const target = raycastEntity(player, 32);
     const loc = target ? target.location : raycastBlockLocation(player, 32);
     if (target) damage(target, 12, player, EntityDamageCause.lightning);
-    try { dim.spawnEntity("minecraft:lightning_bolt", loc); } catch (e) { /* */ }
+    try { player.dimension.spawnEntity("minecraft:lightning_bolt", loc); } catch (e) { /* */ }
     tryActionBar(player, "§e§lThunder Strike");
-  }
-}
+  },
+  sneak(player) {
+    const near = entitiesNear(player.dimension, player.location, 20, player.id).slice(0, 5);
+    for (const t of near) {
+      try { player.dimension.spawnEntity("minecraft:lightning_bolt", t.location); } catch (e) { /* */ }
+      damage(t, 9, player, EntityDamageCause.lightning);
+    }
+    tryActionBar(player, `§e§lChain Lightning §7 ${near.length}`);
+  },
+  up(player) {
+    const dim = player.dimension;
+    const hits = entitiesNear(dim, player.location, 15, player.id);
+    for (let i = 0; i < 6; i++) {
+      const target = hits[Math.floor(Math.random() * Math.max(1, hits.length))] || player;
+      const spot = vAdd(target.location, { x: (Math.random() - 0.5) * 4, y: 0, z: (Math.random() - 0.5) * 4 });
+      try { dim.spawnEntity("minecraft:lightning_bolt", spot); } catch (e) { /* */ }
+      for (const v of entitiesNear(dim, spot, 2.5, player.id)) {
+        damage(v, 6, player, EntityDamageCause.lightning);
+      }
+    }
+    tryActionBar(player, "§e§lThunder Cloud");
+  },
+  down(player) {
+    const dim = player.dimension;
+    try { dim.spawnEntity("minecraft:lightning_bolt", player.location); } catch (e) { /* */ }
+    for (const v of entitiesNear(dim, player.location, 5, player.id)) {
+      damage(v, 12, player, EntityDamageCause.lightning);
+      applyKnock(v, 0, 0, 0, 0.8);
+    }
+    tryActionBar(player, "§e§lGround Shock");
+  },
+  air(player) {
+    const view = player.getViewDirection();
+    tryImpulse(player, { x: view.x * 3, y: 0.3, z: view.z * 3 });
+    const dim = player.dimension;
+    for (let i = 1; i <= 8; i++) {
+      const p = vAdd(player.location, vScale(view, i));
+      try { dim.spawnEntity("minecraft:lightning_bolt", p); } catch (e) { /* */ }
+      for (const v of entitiesNear(dim, p, 2, player.id)) damage(v, 8, player, EntityDamageCause.lightning);
+    }
+    tryActionBar(player, "§e§lLightning Dash");
+  },
+  water(player) {
+    const dim = player.dimension;
+    for (const v of entitiesNear(dim, player.location, 6, player.id)) {
+      try { dim.spawnEntity("minecraft:lightning_bolt", v.location); } catch (e) { /* */ }
+      damage(v, 14, player, EntityDamageCause.lightning);
+    }
+    tryActionBar(player, "§e§lStatic Discharge");
+  },
+  sneak_up(player) {
+    const dim = player.dimension;
+    const near = entitiesNear(dim, player.location, 25, player.id).slice(0, 10);
+    for (const t of near) {
+      try { dim.spawnEntity("minecraft:lightning_bolt", t.location); } catch (e) { /* */ }
+      damage(t, 16, player, EntityDamageCause.lightning);
+    }
+    for (let i = 0; i < 12; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * 10;
+      try { dim.spawnEntity("minecraft:lightning_bolt",
+        vAdd(player.location, { x: Math.cos(a) * r, y: 0, z: Math.sin(a) * r })); } catch (e) { /* */ }
+    }
+    tryActionBar(player, `§e§l§nThunder Storm §7 ${near.length}`);
+  },
+  sneak_down(player) {
+    const dim = player.dimension;
+    for (let r = 1; r <= 5; r++) {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / (5 * r)) {
+        const p = vAdd(player.location, { x: Math.cos(a) * r, y: 0.1, z: Math.sin(a) * r });
+        safeParticle(dim, "minecraft:critical_hit_emitter", p);
+      }
+    }
+    for (const v of entitiesNear(dim, player.location, 6, player.id)) {
+      try { dim.spawnEntity("minecraft:lightning_bolt", v.location); } catch (e) { /* */ }
+      damage(v, 18, player, EntityDamageCause.lightning);
+    }
+    tryActionBar(player, "§e§l§nIon Surge");
+  },
+};
 
-function castLight(player) {
-  const dim = player.dimension;
-  if (player.isSneaking) {
+// ---------------------------------------------------------------------------
+// LIGHT - 8 skills
+// ---------------------------------------------------------------------------
+const lightSkills = {
+  tap(player) {
+    const dim = player.dimension;
+    const head = player.getHeadLocation();
+    const view = player.getViewDirection();
+    for (let i = 1; i <= 22; i++) safeParticle(dim, "minecraft:villager_happy", vAdd(head, vScale(view, i)));
+    const target = raycastEntity(player, 32);
+    if (target) { damage(target, 14, player, EntityDamageCause.magic); healPlayer(player, 4); }
+    try { player.playSound("beacon.activate"); } catch (e) { /* */ }
+    tryActionBar(player, "§e§lSolar Beam");
+  },
+  sneak(player) {
+    const dim = player.dimension;
     for (let a = 0; a < Math.PI * 2; a += Math.PI / 12) {
-      const p = vAdd(player.location, { x: Math.cos(a) * 4, y: 1, z: Math.sin(a) * 4 });
-      safeParticle(dim, "minecraft:villager_happy", p);
+      safeParticle(dim, "minecraft:villager_happy",
+        vAdd(player.location, { x: Math.cos(a) * 4, y: 1, z: Math.sin(a) * 4 }));
     }
     let hit = 0;
     for (const v of entitiesNear(dim, player.location, 8, player.id)) {
       if (v.typeId === "minecraft:player") continue;
-      damage(v, 8, player, EntityDamageCause.magic);
+      damage(v, 9, player, EntityDamageCause.magic);
       hit++;
     }
-    healPlayer(player, 3 + hit);
+    healPlayer(player, 4 + hit);
     try { player.playSound("beacon.power"); } catch (e) { /* */ }
     tryActionBar(player, "§e§lRadiant Pulse");
-  } else {
-    const target = raycastEntity(player, 32);
-    const head = player.getHeadLocation();
-    const view = player.getViewDirection();
-    for (let i = 1; i <= 22; i++) {
-      safeParticle(dim, "minecraft:villager_happy", vAdd(head, vScale(view, i)));
+  },
+  up(player) {
+    const dim = player.dimension;
+    let hit = 0;
+    for (const v of entitiesNear(dim, player.location, 18, player.id)) {
+      if (v.typeId === "minecraft:player") continue;
+      damage(v, 11, player, EntityDamageCause.magic);
+      addFx(v, "blindness", 60, 0);
+      hit++;
     }
-    if (target) {
-      damage(target, 14, player, EntityDamageCause.magic);
-      healPlayer(player, 4);
+    for (let i = 0; i < 30; i++) {
+      const a = Math.random() * Math.PI * 2;
+      safeParticle(dim, "minecraft:villager_happy",
+        vAdd(player.location, { x: Math.cos(a) * 6, y: 3 + Math.random() * 3, z: Math.sin(a) * 6 }));
+    }
+    try { player.playSound("beacon.power"); } catch (e) { /* */ }
+    tryActionBar(player, `§e§lDivine Judgement §7 ${hit}`);
+  },
+  down(player) {
+    const dim = player.dimension;
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 12) {
+      safeParticle(dim, "minecraft:villager_happy",
+        vAdd(player.location, { x: Math.cos(a) * 4, y: 0.2, z: Math.sin(a) * 4 }));
+    }
+    for (const v of entitiesNear(dim, player.location, 4, player.id)) {
+      if (v.typeId === "minecraft:player") healPlayer(v, 10);
+    }
+    addFx(player, "regeneration", 120, 1);
+    tryActionBar(player, "§e§lHoly Ground");
+  },
+  air(player) {
+    const view = player.getViewDirection();
+    tryImpulse(player, { x: view.x * 2, y: 0.8, z: view.z * 2 });
+    addFx(player, "slow_falling", 120, 0);
+    for (let i = 0; i < 8; i++) safeParticle(player.dimension, "minecraft:villager_happy", vAdd(player.location, vScale(view, i)));
+    tryActionBar(player, "§e§lLight Step");
+  },
+  water(player) {
+    const dim = player.dimension;
+    healPlayer(player, 10);
+    addFx(player, "water_breathing", 200, 0);
+    removeFx(player, "poison");
+    removeFx(player, "wither");
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 16) {
+      safeParticle(dim, "minecraft:villager_happy",
+        vAdd(player.location, { x: Math.cos(a) * 3, y: 1, z: Math.sin(a) * 3 }));
+    }
+    tryActionBar(player, "§e§lPurify");
+  },
+  sneak_up(player) {
+    const dim = player.dimension;
+    let hit = 0;
+    for (const v of entitiesNear(dim, player.location, 16, player.id)) {
+      if (v.typeId === "minecraft:player") { healPlayer(v, 20); continue; }
+      damage(v, 22, player, EntityDamageCause.magic);
+      hit++;
+    }
+    healPlayer(player, 20);
+    addFx(player, "resistance", 140, 1);
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
+      for (let r = 1; r <= 6; r++) {
+        safeParticle(dim, "minecraft:villager_happy",
+          vAdd(player.location, { x: Math.cos(a) * r, y: 1 + r * 0.2, z: Math.sin(a) * r }));
+      }
+    }
+    try { player.playSound("beacon.power"); } catch (e) { /* */ }
+    tryActionBar(player, `§e§l§nCelestial §7 ${hit}`);
+  },
+  sneak_down(player) {
+    addFx(player, "resistance", 60, 3);
+    addFx(player, "regeneration", 60, 2);
+    for (let i = 0; i < 20; i++) {
+      const a = Math.random() * Math.PI * 2;
+      safeParticle(player.dimension, "minecraft:villager_happy",
+        vAdd(player.location, { x: Math.cos(a) * 1.5, y: Math.random() * 2, z: Math.sin(a) * 1.5 }));
     }
     try { player.playSound("beacon.activate"); } catch (e) { /* */ }
-    tryActionBar(player, "§e§lSolar Beam");
-  }
-}
+    tryActionBar(player, "§e§l§nSanctum");
+  },
+};
 
-function castDark(player) {
-  const dim = player.dimension;
-  const head = player.getHeadLocation();
-  const view = player.getViewDirection();
-  if (player.isSneaking) {
-    const dest = vAdd(player.location, vScale(view, 20));
-    try { player.teleport(dest, { dimension: dim }); } catch (e) { /* */ }
-    for (let i = 0; i < 20; i++) {
-      safeParticle(dim, "minecraft:mobspell_emitter", vAdd(player.location, vScale(view, -i)));
-    }
-    try { player.playSound("mob.endermen.portal"); } catch (e) { /* */ }
-    tryActionBar(player, "§5§lShadow Step");
-  } else {
+// ---------------------------------------------------------------------------
+// DARK - 8 skills
+// ---------------------------------------------------------------------------
+const darkSkills = {
+  tap(player) {
+    const dim = player.dimension;
+    const head = player.getHeadLocation();
+    const view = player.getViewDirection();
     const target = raycastEntity(player, 24);
     if (target) {
-      damage(target, 10, player, EntityDamageCause.magic);
+      damage(target, 12, player, EntityDamageCause.magic);
       const back = vNorm({ x: player.location.x - target.location.x, y: 0, z: player.location.z - target.location.z });
-      const pullPos = vAdd(target.location, vScale(back, 1.5));
-      try { player.teleport(pullPos, { dimension: dim }); } catch (e) { /* */ }
-      for (let i = 1; i <= 10; i++) {
-        safeParticle(dim, "minecraft:mobspell_emitter", vAdd(head, vScale(view, i)));
-      }
+      try { player.teleport(vAdd(target.location, vScale(back, 1.5)), { dimension: dim }); } catch (e) { /* */ }
+      for (let i = 1; i <= 10; i++) safeParticle(dim, "minecraft:mobspell_emitter", vAdd(head, vScale(view, i)));
       try { player.playSound("mob.wither.shoot"); } catch (e) { /* */ }
       tryActionBar(player, "§5§lVoid Grasp");
     } else {
       tryActionBar(player, "§5§lVoid Grasp §7(no target)");
     }
-  }
-}
-
-function castDarkScythe(player) {
-  const dim = player.dimension;
-  const head = player.getHeadLocation();
-  const view = player.getViewDirection();
-  if (player.isSneaking) {
-    const victims = entitiesNear(dim, player.location, 4.5, player.id)
-      .filter((e) => e.typeId !== "minecraft:player");
+  },
+  sneak(player) {
+    const dim = player.dimension;
+    const view = player.getViewDirection();
+    const dest = vAdd(player.location, vScale(view, 20));
+    try { player.teleport(dest, { dimension: dim }); } catch (e) { /* */ }
+    for (let i = 0; i < 20; i++) safeParticle(dim, "minecraft:mobspell_emitter", vAdd(player.location, vScale(view, -i * 0.5)));
+    try { player.playSound("mob.endermen.portal"); } catch (e) { /* */ }
+    tryActionBar(player, "§5§lShadow Step");
+  },
+  up(player) {
+    const dim = player.dimension;
+    for (const v of entitiesNear(dim, player.location, 15, player.id)) {
+      if (v.typeId === "minecraft:player") continue;
+      addFx(v, "blindness", 100, 1);
+      addFx(v, "slowness", 100, 1);
+      damage(v, 6, player, EntityDamageCause.magic);
+    }
+    for (let i = 0; i < 30; i++) {
+      const a = Math.random() * Math.PI * 2;
+      safeParticle(dim, "minecraft:mobspell_emitter",
+        vAdd(player.location, { x: Math.cos(a) * 6, y: 4 + Math.random() * 3, z: Math.sin(a) * 6 }));
+    }
+    try { player.playSound("mob.wither.ambient"); } catch (e) { /* */ }
+    tryActionBar(player, "§5§lEclipse");
+  },
+  down(player) {
+    const dim = player.dimension;
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 14) {
+      safeParticle(dim, "minecraft:mobspell_emitter",
+        vAdd(player.location, { x: Math.cos(a) * 4, y: 0.2, z: Math.sin(a) * 4 }));
+    }
+    for (const v of entitiesNear(dim, player.location, 5, player.id)) {
+      damage(v, 10, player, EntityDamageCause.magic);
+      addFx(v, "slowness", 80, 2);
+    }
+    tryActionBar(player, "§5§lShadow Pit");
+  },
+  air(player) {
+    const view = player.getViewDirection();
+    tryImpulse(player, { x: view.x * 2.5, y: 0.3, z: view.z * 2.5 });
+    addFx(player, "invisibility", 60, 0);
+    for (let i = 0; i < 10; i++) safeParticle(player.dimension, "minecraft:mobspell_emitter", vAdd(player.location, vScale(view, i)));
+    tryActionBar(player, "§5§lWraith Form");
+  },
+  water(player) {
+    const dim = player.dimension;
+    for (const v of entitiesNear(dim, player.location, 6, player.id)) {
+      damage(v, 12, player, EntityDamageCause.magic);
+      const d = vNorm({ x: v.location.x - player.location.x, y: 0, z: v.location.z - player.location.z });
+      applyKnock(v, d.x, d.z, 1.8, 0.4);
+    }
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 12) {
+      safeParticle(dim, "minecraft:mobspell_emitter",
+        vAdd(player.location, { x: Math.cos(a) * 3, y: 0.8, z: Math.sin(a) * 3 }));
+    }
+    tryActionBar(player, "§5§lAbyssal Wave");
+  },
+  sneak_up(player) {
+    const dim = player.dimension;
     let drained = 0;
-    for (const v of victims) {
-      damage(v, 9, player, EntityDamageCause.magic);
+    for (const v of entitiesNear(dim, player.location, 14, player.id)) {
+      if (v.typeId === "minecraft:player") continue;
+      const d = vNorm({ x: player.location.x - v.location.x, y: 0, z: player.location.z - v.location.z });
+      applyKnock(v, d.x, d.z, 2.2, -0.2);
+      damage(v, 18, player, EntityDamageCause.magic);
+      addFx(v, "wither", 80, 1);
       drained++;
     }
+    healPlayer(player, drained * 3);
+    for (let i = 0; i < 40; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * 7;
+      safeParticle(dim, "minecraft:mobspell_emitter",
+        vAdd(player.location, { x: Math.cos(a) * r, y: Math.random() * 3, z: Math.sin(a) * r }));
+    }
+    try { player.playSound("mob.wither.ambient"); } catch (e) { /* */ }
+    tryActionBar(player, `§5§l§nDarkness Incarnate §7 ${drained}`);
+  },
+  sneak_down(player) {
+    const dim = player.dimension;
+    let absorbed = 0;
+    for (const v of entitiesNear(dim, player.location, 6, player.id)) {
+      if (v.typeId === "minecraft:player") continue;
+      damage(v, 14, player, EntityDamageCause.magic);
+      absorbed += 3;
+    }
+    healPlayer(player, absorbed);
+    addFx(player, "absorption", 200, 2);
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 16) {
+      safeParticle(dim, "minecraft:mobspell_emitter",
+        vAdd(player.location, { x: Math.cos(a) * 3, y: 1, z: Math.sin(a) * 3 }));
+    }
+    tryActionBar(player, "§5§l§nSoul Siphon");
+  },
+};
+
+// ---------------------------------------------------------------------------
+// DARK SCYTHE - extra modes (passive is handled by entityHitEntity)
+// ---------------------------------------------------------------------------
+const darkScytheSkills = {
+  tap(player) {
+    const dim = player.dimension;
+    const head = player.getHeadLocation();
+    const view = player.getViewDirection();
+    const forward = vNorm(view);
+    const victims = entitiesInCone(player, head, forward, 6, Math.cos(Math.PI / 4));
+    for (const v of victims) {
+      damage(v, 14, player, EntityDamageCause.entityAttack);
+      applyKnock(v, view.x, view.z, 1.6, 0.4);
+    }
+    for (let i = 1; i <= 6; i++) safeParticle(dim, "minecraft:mobspell_emitter", vAdd(head, vScale(view, i)));
+    try { player.playSound("mob.wither.shoot"); } catch (e) { /* */ }
+    tryActionBar(player, `§5§lShadow Slash §7 ${victims.length}`);
+  },
+  sneak(player) {
+    const dim = player.dimension;
+    const victims = entitiesNear(dim, player.location, 5, player.id).filter((e) => e.typeId !== "minecraft:player");
+    let drained = 0;
+    for (const v of victims) { damage(v, 11, player, EntityDamageCause.magic); drained++; }
     healPlayer(player, drained * 2);
     for (let i = 0; i < 16; i++) {
       const a = (Math.PI * 2 * i) / 16;
@@ -414,34 +988,105 @@ function castDarkScythe(player) {
     }
     try { player.playSound("mob.wither.ambient"); } catch (e) { /* */ }
     tryActionBar(player, `§5§lSoul Reap §7 ${drained}`);
-  } else {
-    const forward = vNorm(view);
-    const victims = entitiesInCone(player, head, forward, 6, Math.cos(Math.PI / 4));
+  },
+  up(player) {
+    const dim = player.dimension;
+    const target = raycastEntity(player, 30);
+    if (target) {
+      const to = vAdd(player.location, { x: 0, y: 0, z: 0 });
+      try { target.teleport(vAdd(to, { x: 0, y: 1, z: 0 }), { dimension: dim }); } catch (e) { /* */ }
+      damage(target, 12, player, EntityDamageCause.magic);
+      tryActionBar(player, "§5§lReaper's Call");
+    } else {
+      tryActionBar(player, "§5§lReaper's Call §7(no target)");
+    }
+  },
+  down(player) {
+    const dim = player.dimension;
+    for (const v of entitiesNear(dim, player.location, 5, player.id)) {
+      if (v.typeId === "minecraft:player") continue;
+      damage(v, 8, player, EntityDamageCause.magic);
+      addFx(v, "slowness", 140, 3);
+      addFx(v, "weakness", 140, 1);
+    }
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 14) {
+      safeParticle(dim, "minecraft:mobspell_emitter",
+        vAdd(player.location, { x: Math.cos(a) * 3.5, y: 0.2, z: Math.sin(a) * 3.5 }));
+    }
+    tryActionBar(player, "§5§lCemetery");
+  },
+  air(player) {
+    const view = player.getViewDirection();
+    tryImpulse(player, { x: view.x * 2, y: 0.4, z: view.z * 2 });
+    addFx(player, "slow_falling", 120, 0);
+    const dim = player.dimension;
+    for (let i = 0; i < 10; i++) safeParticle(dim, "minecraft:mobspell_emitter", vAdd(player.location, vScale(view, i)));
+    const t = raycastEntity(player, 8);
+    if (t) damage(t, 10, player, EntityDamageCause.entityAttack);
+    tryActionBar(player, "§5§lGrim Glide");
+  },
+  water(player) {
+    const dim = player.dimension;
+    for (const v of entitiesNear(dim, player.location, 5, player.id)) {
+      if (v.typeId === "minecraft:player") continue;
+      damage(v, 10, player, EntityDamageCause.magic);
+      addFx(v, "slowness", 100, 3);
+    }
+    addFx(player, "water_breathing", 200, 0);
+    tryActionBar(player, "§5§lDrowned Harvest");
+  },
+  sneak_up(player) {
+    const dim = player.dimension;
+    let slain = 0;
+    for (const v of entitiesNear(dim, player.location, 12, player.id)) {
+      if (v.typeId === "minecraft:player") continue;
+      damage(v, 22, player, EntityDamageCause.magic);
+      addFx(v, "wither", 100, 2);
+      slain++;
+    }
+    healPlayer(player, slain * 3);
+    for (let r = 1; r <= 6; r++) {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / (4 * r)) {
+        safeParticle(dim, "minecraft:mobspell_emitter",
+          vAdd(player.location, { x: Math.cos(a) * r, y: 1, z: Math.sin(a) * r }));
+      }
+    }
+    try { player.playSound("mob.wither.death"); } catch (e) { /* */ }
+    tryActionBar(player, `§5§l§nDeath Harvest §7 ${slain}`);
+  },
+  sneak_down(player) {
+    const dim = player.dimension;
+    const victims = entitiesNear(dim, player.location, 8, player.id).filter((e) => e.typeId !== "minecraft:player");
     for (const v of victims) {
-      damage(v, 12, player, EntityDamageCause.entityAttack);
-      try { v.applyKnockback(view.x, view.z, 1.4, 0.4); } catch (e) { /* */ }
+      damage(v, 16, player, EntityDamageCause.magic);
+      addFx(v, "wither", 120, 1);
     }
-    for (let i = 1; i <= 6; i++) {
-      safeParticle(dim, "minecraft:mobspell_emitter", vAdd(head, vScale(view, i)));
+    addFx(player, "absorption", 200, 2);
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 18) {
+      safeParticle(dim, "minecraft:mobspell_emitter",
+        vAdd(player.location, { x: Math.cos(a) * 5, y: 0.2, z: Math.sin(a) * 5 }));
     }
-    try { player.playSound("mob.wither.shoot"); } catch (e) { /* */ }
-    tryActionBar(player, `§5§lShadow Slash §7 ${victims.length}`);
-  }
-}
-
-const SKILL_HANDLERS = {
-  [`${NS}:fire_staff`]: castFire,
-  [`${NS}:water_staff`]: castWater,
-  [`${NS}:earth_staff`]: castEarth,
-  [`${NS}:air_staff`]: castAir,
-  [`${NS}:lightning_staff`]: castLightning,
-  [`${NS}:light_staff`]: castLight,
-  [`${NS}:dark_staff`]: castDark,
-  [`${NS}:dark_scythe`]: castDarkScythe,
+    try { player.playSound("mob.wither.ambient"); } catch (e) { /* */ }
+    tryActionBar(player, "§5§l§nGraveyard");
+  },
 };
 
 // ---------------------------------------------------------------------------
-// grant items
+// skill dispatch table
+// ---------------------------------------------------------------------------
+const SKILL_SETS = {
+  [`${NS}:fire_staff`]: fireSkills,
+  [`${NS}:water_staff`]: waterSkills,
+  [`${NS}:earth_staff`]: earthSkills,
+  [`${NS}:air_staff`]: airSkills,
+  [`${NS}:lightning_staff`]: lightningSkills,
+  [`${NS}:light_staff`]: lightSkills,
+  [`${NS}:dark_staff`]: darkSkills,
+  [`${NS}:dark_scythe`]: darkScytheSkills,
+};
+
+// ---------------------------------------------------------------------------
+// grant / awakening
 // ---------------------------------------------------------------------------
 function giveItem(player, typeId, amount) {
   try {
@@ -449,24 +1094,80 @@ function giveItem(player, typeId, amount) {
     if (!inv || !inv.container) return;
     const stack = new ItemStack(typeId, amount || 1);
     const leftover = inv.container.addItem(stack);
-    if (leftover) {
-      player.dimension.spawnItem(leftover, player.location);
-    }
-  } catch (e) {
-    try { console.warn(`giveItem failed for ${typeId}: ${e}`); } catch (_) { /* */ }
+    if (leftover) player.dimension.spawnItem(leftover, player.location);
+  } catch (e) { try { console.warn(`giveItem ${typeId}: ${e}`); } catch (_) { /* */ } }
+}
+
+function grantElementOrb(player, el) {
+  giveItem(player, `${NS}:${el.id}_orb`, 1);
+  player.sendMessage(`§${el.color}§l[Elemental Powers]§r §7You received a §${el.color}${el.label} Orb§7. §8Hold-tap to consume and awaken.`);
+  try { player.playSound("random.pop"); } catch (e) { /* */ }
+}
+
+function grantAllOrbs(player) {
+  for (const el of ELEMENTS) giveItem(player, `${NS}:${el.id}_orb`, 1);
+  player.sendMessage("§d§l[Elemental Powers]§r §7All §delemental orbs§7 granted. Eat each to awaken.");
+  try { player.playSound("random.levelup"); } catch (e) { /* */ }
+}
+
+const AWAKENING_TICKS = 80; // 4 seconds dizzy
+
+function beginAwakening(player, elementId) {
+  const el = ELEMENT_BY_ID[elementId];
+  if (!el) return;
+  const dim = player.dimension;
+
+  // Dizzy phase
+  addFx(player, "nausea", AWAKENING_TICKS + 20, 2);
+  addFx(player, "slowness", AWAKENING_TICKS, 3);
+  addFx(player, "blindness", AWAKENING_TICKS, 0);
+  addFx(player, "weakness", AWAKENING_TICKS, 1);
+  try { runCmd(player, `camerashake add @s 2 ${(AWAKENING_TICKS / 20).toFixed(1)} positional`); } catch (e) { /* */ }
+  try { player.playSound("mob.endermen.portal"); } catch (e) { /* */ }
+  player.sendMessage(`§${el.color}§l[Awakening]§r §7Dizzy... channeling the §${el.color}${el.label}§7 essence.`);
+
+  // Swirling particles around the player during dizziness
+  for (let t = 0; t < AWAKENING_TICKS; t += 4) {
+    const baseT = t;
+    system.runTimeout(() => {
+      try {
+        const p = player.location;
+        for (let i = 0; i < 6; i++) {
+          const a = (baseT / 4) * 0.6 + (i * Math.PI) / 3;
+          const r = 1.5;
+          safeParticle(dim, el.id === "fire" ? "minecraft:basic_flame_particle"
+            : el.id === "water" ? "minecraft:water_splash_particle"
+            : el.id === "earth" ? "minecraft:basic_crit_particle"
+            : el.id === "air" ? "minecraft:cloud"
+            : el.id === "lightning" ? "minecraft:critical_hit_emitter"
+            : el.id === "light" ? "minecraft:villager_happy"
+            : "minecraft:mobspell_emitter",
+            vAdd(p, { x: Math.cos(a) * r, y: 1 + Math.sin(a * 0.5) * 0.6, z: Math.sin(a) * r }));
+        }
+      } catch (e) { /* */ }
+    }, t);
   }
-}
 
-function grantElement(player, el) {
-  for (const it of el.items) giveItem(player, it, 1);
-  player.sendMessage(`§${el.color}§l[Elemental Powers]§r §7Granted §${el.color}${el.label}§7 skills.`);
-  try { player.playSound("random.levelup"); } catch (e) { /* */ }
-}
-
-function grantAll(player) {
-  for (const el of ELEMENTS) for (const it of el.items) giveItem(player, it, 1);
-  player.sendMessage("§d§l[Elemental Powers]§r §7All §delemental§7 skills granted.");
-  try { player.playSound("random.levelup"); } catch (e) { /* */ }
+  // Awakening completion
+  system.runTimeout(() => {
+    removeFx(player, "nausea");
+    removeFx(player, "slowness");
+    removeFx(player, "blindness");
+    removeFx(player, "weakness");
+    try { player.playSound("random.levelup"); } catch (e) { /* */ }
+    giveItem(player, ELEMENT_TO_STAFF[elementId], 1);
+    if (elementId === "dark") giveItem(player, `${NS}:dark_scythe`, 1);
+    player.sendMessage(
+      `§${el.color}§l[Awakened]§r §7You now wield the §${el.color}${el.label} Staff§7. §8Eight unique skills selected by stance + look + environment.`,
+    );
+    tryActionBar(player, `§${el.color}§l${el.label} Awakening complete`);
+    // Starburst effect
+    for (let i = 0; i < 20; i++) {
+      const a = Math.random() * Math.PI * 2;
+      safeParticle(dim, "minecraft:villager_happy",
+        vAdd(player.location, { x: Math.cos(a) * 2, y: 1 + Math.random() * 2, z: Math.sin(a) * 2 }));
+    }
+  }, AWAKENING_TICKS);
 }
 
 // ---------------------------------------------------------------------------
@@ -476,61 +1177,75 @@ function openGui(player) {
   const form = new ActionFormData()
     .title("§5§lElemental Powers")
     .body(
-      "§7Choose an element to §freceive its full skill kit§7.\n" +
-      "§8Tap the staff to cast primary. §8Hold §7SNEAK§8 + tap for secondary.\n" +
+      "§7Pick an element to claim its §forb§7.\n" +
+      "§8Eat the orb, endure the dizzy §7awakening§8, and you will receive a\n" +
+      "§8staff wielding §f8 unique skills§8 dispatched by stance + look + environment.\n" +
       "§5uekermjheh on rblx",
     );
-  for (const el of ELEMENTS) {
-    form.button(`§${el.color}§l${el.label}§r\n§7${el.subtitle}`, el.icon);
-  }
-  form.button("§d§lAll Elements§r\n§7Every skill at once", "textures/items/elem_gui_tool");
+  for (const el of ELEMENTS) form.button(`§${el.color}§l${el.label}§r\n§7${el.subtitle}`, el.icon);
+  form.button("§d§lAll Orbs§r\n§7Every element at once", "textures/items/elem_gui_tool");
   form.button("§c§lCancel", "textures/items/elem_dark_orb");
 
   form.show(player).then((res) => {
     if (!res || res.canceled) return;
     const idx = res.selection;
     if (typeof idx !== "number") return;
-    if (idx < ELEMENTS.length) return grantElement(player, ELEMENTS[idx]);
-    if (idx === ELEMENTS.length) return grantAll(player);
-  }).catch((err) => {
-    try { console.warn(`form error: ${err}`); } catch (e) { /* */ }
-  });
+    if (idx < ELEMENTS.length) return grantElementOrb(player, ELEMENTS[idx]);
+    if (idx === ELEMENTS.length) return grantAllOrbs(player);
+  }).catch((err) => { try { console.warn(`form error: ${err}`); } catch (e) { /* */ } });
 }
 
 // ---------------------------------------------------------------------------
 // listeners
 // ---------------------------------------------------------------------------
 
-// 1) Item use (tap/right-click) - fires in before (press) AND after (release)
+// 1) Staff/scythe/gui-tool use
 function handleItemUse(source, itemStack) {
   const id = itemStack && itemStack.typeId;
   if (!id || !source) return;
   if (id === `${NS}:gui_tool`) {
-    if (!checkCooldown(source, id)) return;
+    if (!checkCooldownTicks(source, `${id}:open`, 6)) return;
     system.run(() => openGui(source));
     return;
   }
-  const handler = SKILL_HANDLERS[id];
-  if (!handler) return;
-  if (!checkCooldown(source, id)) return;
-  system.run(() => {
-    try { handler(source); } catch (e) {
-      try { console.warn(`skill error for ${id}: ${e}`); } catch (_) { /* */ }
-    }
-  });
+  const set = SKILL_SETS[id];
+  if (!set) return;
+  system.run(() => dispatchStaff(source, id, set));
 }
 
+try { world.afterEvents.itemUse.subscribe((ev) => handleItemUse(ev.source, ev.itemStack)); } catch (e) { /* */ }
+
+// 2) Orb consumption -> awakening
 try {
-  world.afterEvents.itemUse.subscribe((ev) => handleItemUse(ev.source, ev.itemStack));
+  world.afterEvents.itemCompleteUse.subscribe((ev) => {
+    const player = ev.source;
+    const id = ev.itemStack && ev.itemStack.typeId;
+    if (!player || !id) return;
+    const elementId = ORB_TO_ELEMENT[id];
+    if (!elementId) return;
+    system.run(() => beginAwakening(player, elementId));
+  });
+} catch (e) { /* fallback below */ }
+
+// Fallback for engines without itemCompleteUse: start awakening a short delay
+// after itemStartUse and verify the player still holds the orb.
+try {
+  world.afterEvents.itemStartUse.subscribe((ev) => {
+    const player = ev.source;
+    const id = ev.itemStack && ev.itemStack.typeId;
+    const elementId = id && ORB_TO_ELEMENT[id];
+    if (!player || !elementId) return;
+    system.runTimeout(() => {
+      try {
+        const equip = player.getComponent("minecraft:equippable");
+        const mh = equip && equip.getEquipment && equip.getEquipment(EquipmentSlot.Mainhand);
+        if (mh && mh.typeId === id) beginAwakening(player, elementId);
+      } catch (e) { /* */ }
+    }, 36);
+  });
 } catch (e) { /* */ }
 
-try {
-  // Some Bedrock versions only deliver itemUse via before-events. Subscribe to
-  // both and dedupe via cooldown so we fire exactly once per tap.
-  world.beforeEvents.itemUse.subscribe((ev) => handleItemUse(ev.source, ev.itemStack));
-} catch (e) { /* */ }
-
-// 2) Chat trigger - Bedrock blocks "/"-prefixed messages; accept !getmygui or getmygui
+// 3) Chat trigger - Bedrock blocks "/"-prefixed messages
 try {
   world.beforeEvents.chatSend.subscribe((ev) => {
     const raw = (ev.message || "").trim().toLowerCase();
@@ -542,7 +1257,7 @@ try {
   });
 } catch (e) { /* */ }
 
-// 3) /scriptevent elempower:gui
+// 4) /scriptevent elempower:gui
 try {
   system.afterEvents.scriptEventReceive.subscribe((ev) => {
     if (ev.id !== `${NS}:gui`) return;
@@ -552,7 +1267,7 @@ try {
   });
 } catch (e) { /* */ }
 
-// 4) Custom slash command (MC 1.21.80+ @minecraft/server 1.17.0). Best-effort.
+// 5) Custom slash command (MC 1.21.80+). Best-effort.
 try {
   if (system.beforeEvents && system.beforeEvents.startup) {
     system.beforeEvents.startup.subscribe((ev) => {
@@ -566,27 +1281,22 @@ try {
             permissionLevel: (mc.CommandPermissionLevel && mc.CommandPermissionLevel.Any) ?? 0,
           },
           (origin) => {
-            const player = origin && origin.sourceEntity;
-            if (player && player.typeId === "minecraft:player") {
-              system.run(() => openGui(player));
-            }
+            const p = origin && origin.sourceEntity;
+            if (p && p.typeId === "minecraft:player") system.run(() => openGui(p));
             return { status: 0, message: "Opening Elemental Powers..." };
           },
         );
-      } catch (e) {
-        try { console.warn(`custom command register failed: ${e}`); } catch (_) { /* */ }
-      }
+      } catch (e) { try { console.warn(`register cmd: ${e}`); } catch (_) { /* */ } }
     });
   }
 } catch (e) { /* */ }
 
-// 5) Dark Scythe passive: melee hit -> bonus damage + lifesteal
+// 6) Dark Scythe melee passive: bonus damage + lifesteal
 try {
   world.afterEvents.entityHitEntity.subscribe((ev) => {
     const attacker = ev.damagingEntity;
     const target = ev.hitEntity;
-    if (!attacker || !target) return;
-    if (attacker.typeId !== "minecraft:player") return;
+    if (!attacker || !target || attacker.typeId !== "minecraft:player") return;
     let mainhandId;
     try {
       const equip = attacker.getComponent("minecraft:equippable");
@@ -600,8 +1310,8 @@ try {
   });
 } catch (e) { /* */ }
 
-// 6) Auto-give GUI Tool on first spawn + welcome message
-const GIVEN_TAG = "elempower_given_gui";
+// 7) First-spawn welcome: give GUI Tool + instructions
+const GIVEN_TAG = "elempower_given_gui_v3";
 try {
   world.afterEvents.playerSpawn.subscribe((ev) => {
     if (!ev.initialSpawn) return;
@@ -613,16 +1323,14 @@ try {
           giveItem(player, `${NS}:gui_tool`, 1);
           player.addTag(GIVEN_TAG);
         }
-        player.sendMessage("§5§l[Elemental Powers]§r §7Loaded. Tap the §dGUI Tool§7 or type §b!getmygui§7 in chat.");
+        player.sendMessage("§5§l[Elemental Powers v3]§r §7Tap the §dGUI Tool§7 or type §b!getmygui§7. Pick an element, eat the orb, survive the dizzy awakening.");
       } catch (e) { /* */ }
     });
   });
 } catch (e) { /* */ }
 
-// 7) Startup broadcast so the player can confirm scripts are running
+// 8) Startup broadcast
 system.run(() => {
-  try {
-    world.sendMessage("§5§l[Elemental Powers]§r §7scripts loaded - §5uekermjheh on rblx");
-  } catch (e) { /* */ }
-  try { console.log("[Elemental Powers] ready"); } catch (e) { /* */ }
+  try { world.sendMessage("§5§l[Elemental Powers v3]§r §7scripts loaded - §5uekermjheh on rblx"); } catch (e) { /* */ }
+  try { console.log("[Elemental Powers v3] ready"); } catch (e) { /* */ }
 });
