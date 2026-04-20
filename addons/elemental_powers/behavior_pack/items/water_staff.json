@@ -1,0 +1,28 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:item": {
+    "description": {
+      "identifier": "elempower:water_staff",
+      "menu_category": {
+        "category": "equipment",
+        "group": "itemGroup.name.elemental_powers"
+      }
+    },
+    "components": {
+      "minecraft:icon": {
+        "texture": "elem_water_staff"
+      },
+      "minecraft:display_name": {
+        "value": "Water Staff"
+      },
+      "minecraft:max_stack_size": 1,
+      "minecraft:hand_equipped": true,
+      "minecraft:damage": 3,
+      "minecraft:durability": {
+        "max_durability": 2000
+      },
+      "minecraft:use_animation": "eat",
+      "minecraft:glint": true
+    }
+  }
+}

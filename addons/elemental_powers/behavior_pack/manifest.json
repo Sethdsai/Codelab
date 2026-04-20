@@ -1,0 +1,43 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Elemental Powers 1.0 beta (BP)",
+    "description": "uekermjheh on rblx",
+    "uuid": "38c5d1aa-8513-4bcb-ae74-e4717ba162d6",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 21, 20]
+  },
+  "modules": [
+    {
+      "type": "data",
+      "uuid": "46397572-f143-4f09-909b-7fb2c81bb4f5",
+      "version": [1, 0, 0]
+    },
+    {
+      "type": "script",
+      "language": "javascript",
+      "entry": "scripts/main.js",
+      "uuid": "924b690a-e745-416c-bd79-c9e2ad25f00c",
+      "version": [1, 0, 0]
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "1.14.0"
+    },
+    {
+      "module_name": "@minecraft/server-ui",
+      "version": "1.2.0"
+    },
+    {
+      "uuid": "5f6d2177-b0de-40bd-8664-603a369b5b4c",
+      "version": [1, 0, 0]
+    }
+  ],
+  "metadata": {
+    "authors": ["uekermjheh"],
+    "license": "MIT",
+    "product_type": "addon"
+  }
+}

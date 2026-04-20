@@ -1,0 +1,28 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Elemental Powers 1.0 beta (RP)",
+    "description": "uekermjheh on rblx",
+    "uuid": "5f6d2177-b0de-40bd-8664-603a369b5b4c",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 21, 20]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "7eb9b83c-0025-413d-9fb6-ad4169772729",
+      "version": [1, 0, 0]
+    }
+  ],
+  "dependencies": [
+    {
+      "uuid": "38c5d1aa-8513-4bcb-ae74-e4717ba162d6",
+      "version": [1, 0, 0]
+    }
+  ],
+  "metadata": {
+    "authors": ["uekermjheh"],
+    "license": "MIT",
+    "product_type": "addon"
+  }
+}

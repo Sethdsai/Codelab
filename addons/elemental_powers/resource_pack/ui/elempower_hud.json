@@ -1,0 +1,47 @@
+{
+  "namespace": "elempower_hud",
+
+  "side_panel_bg": {
+    "type": "image",
+    "texture": "textures/ui/dialog_background_opaque",
+    "size": [148, 112],
+    "anchor_from": "right_middle",
+    "anchor_to": "right_middle",
+    "offset": [-4, -4],
+    "alpha": 0.72,
+    "layer": 1
+  },
+
+  "side_panel_title": {
+    "type": "label",
+    "text": "§5§lELEMENTAL POWERS",
+    "color": "$elempower_accent_color",
+    "shadow": "$elempower_text_shadow",
+    "text_alignment": "center",
+    "font_scale_factor": 0.7,
+    "anchor_from": "top_middle",
+    "anchor_to": "top_middle",
+    "offset": [0, 3],
+    "size": ["default", 10]
+  },
+
+  "side_panel_subtitle": {
+    "type": "label",
+    "text": "§7uekermjheh on rblx",
+    "color": [0.78, 0.78, 0.82],
+    "shadow": true,
+    "text_alignment": "center",
+    "font_scale_factor": 0.55,
+    "anchor_from": "bottom_middle",
+    "anchor_to": "bottom_middle",
+    "offset": [0, -3],
+    "size": ["default", 8]
+  },
+
+  "side_panel@elempower_hud.side_panel_bg": {
+    "controls": [
+      { "title@elempower_hud.side_panel_title": {} },
+      { "subtitle@elempower_hud.side_panel_subtitle": {} }
+    ]
+  }
+}

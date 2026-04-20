@@ -1,0 +1,30 @@
+pack.name=Elemental Powers 1.0 beta (RP)
+pack.description=uekermjheh on rblx
+
+item.elempower:gui_tool.name=GUI Tool
+item.elempower:dark_scythe.name=Dark Scythe
+item.elempower:fire_staff.name=Fire Staff
+item.elempower:water_staff.name=Water Staff
+item.elempower:earth_staff.name=Earth Staff
+item.elempower:air_staff.name=Air Staff
+item.elempower:lightning_staff.name=Lightning Staff
+item.elempower:light_staff.name=Light Staff
+item.elempower:dark_staff.name=Dark Staff
+item.elempower:fire_orb.name=Fire Orb
+item.elempower:water_orb.name=Water Orb
+item.elempower:earth_orb.name=Earth Orb
+item.elempower:air_orb.name=Air Orb
+item.elempower:lightning_orb.name=Lightning Orb
+item.elempower:light_orb.name=Light Orb
+item.elempower:dark_orb.name=Dark Orb
+
+item.elempower:card_primary.name=Skill 1
+item.elempower:card_bastion.name=Skill 2
+item.elempower:card_skyfall.name=Skill 3
+item.elempower:card_root.name=Skill 4
+item.elempower:card_slipstream.name=Skill 5
+item.elempower:card_conduit.name=Skill 6
+item.elempower:card_climax.name=Skill 7 BIG
+item.elempower:card_plunge.name=Skill 8 BIG
+
+itemGroup.name.elemental_powers=Elemental Powers
