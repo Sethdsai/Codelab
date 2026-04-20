@@ -13,7 +13,7 @@
         "texture": "elem_card_primary"
       },
       "minecraft:display_name": {
-        "value": "Primary Rune"
+        "value": "Skill 1"
       },
       "minecraft:max_stack_size": 1,
       "minecraft:hand_equipped": true,

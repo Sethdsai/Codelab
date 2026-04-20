@@ -13,7 +13,7 @@
         "texture": "elem_card_conduit"
       },
       "minecraft:display_name": {
-        "value": "Conduit Rune"
+        "value": "Skill 6"
       },
       "minecraft:max_stack_size": 1,
       "minecraft:hand_equipped": true,

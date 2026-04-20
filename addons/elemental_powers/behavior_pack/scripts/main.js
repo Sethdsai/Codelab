@@ -664,7 +664,7 @@ function castLightningChain(player) {
     }
   } catch (e) { /* */ }
   if (!target) {
-    try { player.onScreenDisplay.setActionBar("§e§lLightning Chain §7- §cno target in sight"); } catch (e) { /* */ }
+    try { player.onScreenDisplay.setActionBar("§e§lChain §7- §cno mob to lock onto"); } catch (e) { /* */ }
     return;
   }
 
@@ -1141,16 +1141,16 @@ const SKILL_SETS = {
 };
 
 const MODE_ORDER = ["tap", "sneak", "up", "down", "air", "water", "sneak_up", "sneak_down"];
-// 1.0 beta: runes replace stance labels. Each card item maps 1:1 to a mode.
+// 1.0 beta: slot labels - simple numbers-style so they don't read like fantasy.
 const MODE_LABEL = {
-  tap: "Primary",
-  sneak: "Bastion",
-  up: "Skyfall",
-  down: "Rootbound",
-  air: "Slipstream",
-  water: "Conduit",
-  sneak_up: "Climax",
-  sneak_down: "Plunge",
+  tap: "Slot 1",
+  sneak: "Slot 2",
+  up: "Slot 3",
+  down: "Slot 4",
+  air: "Slot 5",
+  water: "Slot 6",
+  sneak_up: "Slot 7 (BIG)",
+  sneak_down: "Slot 8 (BIG)",
 };
 const CARD_TO_MODE = {
   [`${NS}:card_primary`]:    "tap",
@@ -1164,18 +1164,17 @@ const CARD_TO_MODE = {
 };
 const MODE_TO_CARD = Object.fromEntries(Object.entries(CARD_TO_MODE).map(([k, v]) => [v, k]));
 
-// 1.0 beta: rewritten skill names - less generic, more personality.
-// Order per staff matches MODE_ORDER (primary/bastion/skyfall/root/
-// slipstream/conduit/climax/plunge).
+// 1.0 beta: plain-english names. Short, goofy, inconsistent - the way a
+// 13-year-old names their move list, not the way a marketing team does.
 const SKILL_NAMES = {
-  [`${NS}:fire_staff`]:      { tap: "Ember Strike",   sneak: "Forgefire Halo",   up: "Cinder Vigil",      down: "Lava Well",       air: "Kite Dash",       water: "Steamburst",        sneak_up: "Pyre Cathedral",        sneak_down: "Hellsink" },
-  [`${NS}:water_staff`]:     { tap: "Brinelance",     sneak: "Tidepull",         up: "Drown Rain",        down: "Frostwell",       air: "Mist Slip",       water: "Bloodtide Surge",   sneak_up: "Ocean's Collapse",      sneak_down: "Leviathan Jaw" },
-  [`${NS}:earth_staff`]:     { tap: "Stoneclap",      sneak: "Quakering",        up: "Mountainrise",      down: "Splitjaw",        air: "Gravel Glide",    water: "Silt Grip",         sneak_up: "World's Spine",         sneak_down: "Pallbearer" },
-  [`${NS}:air_staff`]:       { tap: "Gust Lance",     sneak: "Whirlcage",        up: "Heavensend",        down: "Downdraft Anvil", air: "Jet Cloak",       water: "Windwake",          sneak_up: "Cyclone's Eye",         sneak_down: "Atmos Drop" },
-  [`${NS}:lightning_staff`]: { tap: "Lightning Chain",sneak: "Volt Cascade",     up: "Skyhammer",         down: "Rootshock",       air: "Voltkite",        water: "Conduit Wash",      sneak_up: "Tempest Broadcast",     sneak_down: "Ion Marrow" },
-  [`${NS}:light_staff`]:     { tap: "Gleam",          sneak: "Halo Break",       up: "Zenith Lance",      down: "Sanctuary Rise",  air: "Solar Drift",     water: "Radiance Pool",     sneak_up: "Dawnsplit",             sneak_down: "Benediction Crater" },
-  [`${NS}:dark_staff`]:      { tap: "Umbral Fang",    sneak: "Shadow Tether",    up: "Starfall Abyss",    down: "Sink Hollow",     air: "Veilwalk",        water: "Drown Whisper",     sneak_up: "Endless Eclipse",       sneak_down: "Mire of the Forgotten" },
-  [`${NS}:dark_scythe`]:     { tap: "Reaper's Arc",   sneak: "Soul Draw",        up: "Midnight Sever",    down: "Scythed Earth",   air: "Flight of Crows", water: "Grim Tide",         sneak_up: "Last Rites",            sneak_down: "Gravecaller" },
+  [`${NS}:fire_staff`]:      { tap: "Fireball",    sneak: "Ring of Fire", up: "Meteor",       down: "Lava Splash",   air: "Fire Dash",   water: "Steam Blast",  sneak_up: "BIG BOOM",   sneak_down: "Fire Stomp" },
+  [`${NS}:water_staff`]:     { tap: "Water Jab",   sneak: "Pull",         up: "Rain",         down: "Freeze",        air: "Water Slide", water: "Big Wave",     sneak_up: "Tsunami",    sneak_down: "Belly Flop" },
+  [`${NS}:earth_staff`]:     { tap: "Rock Toss",   sneak: "Stomp",        up: "Boulder",      down: "Crack",         air: "Rock Slide",  water: "Mud Trap",     sneak_up: "Mountain",   sneak_down: "Slam" },
+  [`${NS}:air_staff`]:       { tap: "Wind Punch",  sneak: "Spin",         up: "Up Shot",      down: "Air Slam",      air: "Fly",         water: "Wind Push",    sneak_up: "Tornado",    sneak_down: "Dive Bomb" },
+  [`${NS}:lightning_staff`]: { tap: "Chain",       sneak: "Static",       up: "Thunder",      down: "Floor Zap",     air: "Bolt Dash",   water: "Shock",        sneak_up: "Storm",      sneak_down: "Shock Drop" },
+  [`${NS}:light_staff`]:     { tap: "Laser",       sneak: "Pulse",        up: "Sunbeam",      down: "Safe Zone",     air: "Flash",       water: "Cleanse",      sneak_up: "Sun",        sneak_down: "Light Slam" },
+  [`${NS}:dark_staff`]:      { tap: "Grab",        sneak: "Dark Pull",    up: "Eclipse",      down: "Void Pit",      air: "Sneak",       water: "Dark Wave",    sneak_up: "Blackout",   sneak_down: "Ghost Slam" },
+  [`${NS}:dark_scythe`]:     { tap: "Swing",       sneak: "Soul Grab",    up: "Chop",         down: "Floor Slash",   air: "Crow",        water: "Grim Wave",    sneak_up: "Finisher",   sneak_down: "Grave" },
 };
 
 const STAFF_META = {
@@ -1294,7 +1293,7 @@ function giveItem(player, typeId, amount) {
 // v4: picking in the GUI makes the orb pass INTO the player. No item is
 // granted; the awakening runs immediately.
 function grantElement(player, el) {
-  player.sendMessage(`§${el.color}§l[${el.label}]§r §7Orb's in. Hold still.`);
+  player.sendMessage(`§${el.color}§l[${el.label}]§r §7orb is in ur body now`);
   try { player.playSound("random.orb"); } catch (e) { /* */ }
   const dim = player.dimension;
   for (let i = 0; i < 24; i++) {
@@ -1306,7 +1305,7 @@ function grantElement(player, el) {
 }
 
 function grantAll(player) {
-  player.sendMessage("§d§l[All Elements]§r §7Every orb at once. Don't blink.");
+  player.sendMessage("§d§l[ALL]§r §7all 7 at once lol good luck");
   try { player.playSound("random.levelup"); } catch (e) { /* */ }
   let delay = 0;
   for (const el of ELEMENTS) {
@@ -1330,7 +1329,7 @@ function beginAwakening(player, elementId) {
   addFx(player, "weakness", AWAKENING_TICKS, 1);
   try { runCmd(player, `camerashake add @s 2 ${(AWAKENING_TICKS / 20).toFixed(1)} positional`); } catch (e) { /* */ }
   try { player.playSound("mob.endermen.portal"); } catch (e) { /* */ }
-  player.sendMessage(`§${el.color}§l[${el.label}]§r §7Head's spinning...`);
+  player.sendMessage(`§${el.color}§l[${el.label}]§r §7ow my head`);
 
   // Swirling particles around the player during dizziness
   for (let t = 0; t < AWAKENING_TICKS; t += 4) {
@@ -1380,9 +1379,9 @@ function beginAwakening(player, elementId) {
     // Start Primary armed so a staff tap always fires something.
     setArmedMode(player, "tap");
     player.sendMessage(
-      `§${el.color}§l[${el.label}]§r §7Staff's yours. Tap a §eRune§7 to arm, tap the staff to fire.`,
+      `§${el.color}§l[${el.label}]§r §7u got the staff + 8 skill cards. tap a card then tap the staff.`,
     );
-    tryActionBar(player, `§${el.color}§l${el.label}§r §7up.`);
+    tryActionBar(player, `§${el.color}§l${el.label}§r §7ready`);
     // Custom particle starburst using the element's themed particle
     const starP = elementId === "fire" ? "elempower:ember"
       : elementId === "water" ? "elempower:frost_crystal"
@@ -1404,18 +1403,18 @@ function beginAwakening(player, elementId) {
 // ---------------------------------------------------------------------------
 function openCredits(player) {
   const form = new ActionFormData()
-    .title("§6§lCredits")
+    .title("§6§lcredits")
     .body(
       "§eElemental Powers §f1.0 beta\n\n" +
-      "§7Built by one dude, not a generator.\n" +
-      "§7Skills, art, particles, UI - all by hand.\n\n" +
-      "§6Manny Cololot Ango §8- Facebook\n" +
+      "§7made by one guy\n" +
+      "§7not a bot, not a team\n\n" +
+      "§6Manny Cololot Ango §8- FB\n" +
       "§5uekermjheh §8- Roblox\n\n" +
-      "§8Tap the icons to drop the handle in chat.",
+      "§8tap an icon to drop the @ in chat",
     )
     .button("§9§lFacebook§r\n§fManny Cololot Ango", "textures/items/elem_icon_facebook")
     .button("§c§lRoblox§r\n§fuekermjheh", "textures/items/elem_icon_roblox")
-    .button("§7Back", "textures/items/elem_gui_tool");
+    .button("§7back", "textures/items/elem_gui_tool");
   form.show(player).then((res) => {
     if (!res || res.canceled) return;
     if (res.selection === 0) {
@@ -1432,10 +1431,11 @@ function openGui(player) {
   const form = new ActionFormData()
     .title("§5§lElemental Powers 1.0 beta")
     .body(
-      "§7Pick one. Orb goes in. You get dizzy.\n" +
-      "§7You wake up with a staff + §e8 runes§7.\n\n" +
-      "§7Tap a rune to arm. Tap the staff to fire.\n" +
-      "§7Right side of your screen shows the cooldowns.\n\n" +
+      "§7pick one. orb goes in u. u get dizzy.\n" +
+      "§7then u get the staff + §e8 skill cards§7.\n\n" +
+      "§7tap a card to pick a skill.\n" +
+      "§7tap the staff to use it.\n" +
+      "§7cooldowns show on the right side.\n\n" +
       "§5uekermjheh on rblx",
     );
   for (const el of ELEMENTS) form.button(`§${el.color}§l${el.label}§r\n§7${el.subtitle}`, el.icon);
@@ -1458,14 +1458,14 @@ function openBetaWelcome(player) {
   const form = new ActionFormData()
     .title("§5§lElemental Powers 1.0 beta")
     .body(
-      "§71.0 beta. there's probably bugs.\n\n" +
-      "§8Tap the §dGUI Tool§8 or type §b!getmygui§8 to start.\n" +
-      "§8Pick element -> orb in -> dizzy -> staff + §e8 runes§8.\n" +
-      "§8Arm a rune, tap the staff, thing happens.\n\n" +
-      "§6Manny Cololot Ango §8on FB\n" +
-      "§5uekermjheh §8on Roblox",
+      "§7yo. 1.0 beta. bugs prob exist.\n\n" +
+      "§8tap the §dGUI Tool§8 or type §b!getmygui§8 to start.\n" +
+      "§8pick element -> orb goes in -> dizzy -> u get the staff.\n" +
+      "§8tap a skill card, then tap the staff. done.\n\n" +
+      "§6made by Manny Cololot Ango §8(FB)\n" +
+      "§5uekermjheh §8on roblox",
     )
-    .button("§c§lClose", "textures/items/elem_gui_tool");
+    .button("§c§lclose", "textures/items/elem_gui_tool");
   form.show(player).catch(() => { /* */ });
 }
 
@@ -1498,7 +1498,7 @@ function armRuneOnPlayer(player, mode) {
   setArmedMode(player, mode);
   const label = MODE_LABEL[mode] || mode;
   try { player.playSound("random.orb"); } catch (e) { /* */ }
-  try { player.onScreenDisplay.setActionBar(`§e§l>> ARMED §r§f${label}§r §8- tap a staff`); } catch (e) { /* */ }
+  try { player.onScreenDisplay.setActionBar(`§e§lpicked §r§f${label}§r §8tap staff to use`); } catch (e) { /* */ }
   // Custom particle confirmation aura
   const dim = player.dimension;
   for (let i = 0; i < 14; i++) {
@@ -1607,7 +1607,7 @@ try {
           giveItem(player, `${NS}:gui_tool`, 1);
           player.addTag(GIVEN_TAG);
         }
-        player.sendMessage("§5§l[Elemental Powers 1.0 beta]§r §7Tool's in your bag. Tap it (or type §b!getmygui§7).");
+        player.sendMessage("§5§l[Elemental Powers 1.0 beta]§r §7gui tool is in ur inv. tap it. or type §b!getmygui§7.");
         system.runTimeout(() => openBetaWelcome(player), 30);
       } catch (e) { /* */ }
     });
@@ -1646,7 +1646,7 @@ try {
 
 // 8) Startup broadcast
 system.run(() => {
-  try { world.sendMessage("§5§l[Elemental Powers 1.0 beta]§r §7scripts up. §8uekermjheh on rblx."); } catch (e) { /* */ }
+  try { world.sendMessage("§5§l[Elemental Powers 1.0 beta]§r §7mod loaded §8- uekermjheh on rblx"); } catch (e) { /* */ }
   try { console.log("[Elemental Powers 1.0 beta] ready"); } catch (e) { /* */ }
 });
 

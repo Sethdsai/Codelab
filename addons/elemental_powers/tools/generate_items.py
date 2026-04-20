@@ -117,14 +117,14 @@ STAFF_DAMAGE = {
 # to fire the armed skill. Display names are role-flavored so they never feel
 # tied to a single element.
 SKILL_CARDS = [
-    ("primary",   "Primary Rune"),
-    ("bastion",   "Bastion Rune"),
-    ("skyfall",   "Skyfall Rune"),
-    ("root",      "Rootbound Rune"),
-    ("slipstream","Slipstream Rune"),
-    ("conduit",   "Conduit Rune"),
-    ("climax",    "Climax Rune"),
-    ("plunge",    "Plunge Rune"),
+    ("primary",   "Skill 1"),
+    ("bastion",   "Skill 2"),
+    ("skyfall",   "Skill 3"),
+    ("root",      "Skill 4"),
+    ("slipstream","Skill 5"),
+    ("conduit",   "Skill 6"),
+    ("climax",    "Skill 7 BIG"),
+    ("plunge",    "Skill 8 BIG"),
 ]
 
 

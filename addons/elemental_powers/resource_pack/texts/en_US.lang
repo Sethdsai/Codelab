@@ -18,13 +18,13 @@ item.elempower:lightning_orb.name=Lightning Orb
 item.elempower:light_orb.name=Light Orb
 item.elempower:dark_orb.name=Dark Orb
 
-item.elempower:card_primary.name=Primary Rune
-item.elempower:card_bastion.name=Bastion Rune
-item.elempower:card_skyfall.name=Skyfall Rune
-item.elempower:card_root.name=Rootbound Rune
-item.elempower:card_slipstream.name=Slipstream Rune
-item.elempower:card_conduit.name=Conduit Rune
-item.elempower:card_climax.name=Climax Rune
-item.elempower:card_plunge.name=Plunge Rune
+item.elempower:card_primary.name=Skill 1
+item.elempower:card_bastion.name=Skill 2
+item.elempower:card_skyfall.name=Skill 3
+item.elempower:card_root.name=Skill 4
+item.elempower:card_slipstream.name=Skill 5
+item.elempower:card_conduit.name=Skill 6
+item.elempower:card_climax.name=Skill 7 BIG
+item.elempower:card_plunge.name=Skill 8 BIG
 
 itemGroup.name.elemental_powers=Elemental Powers

@@ -13,7 +13,7 @@
         "texture": "elem_card_bastion"
       },
       "minecraft:display_name": {
-        "value": "Bastion Rune"
+        "value": "Skill 2"
       },
       "minecraft:max_stack_size": 1,
       "minecraft:hand_equipped": true,
