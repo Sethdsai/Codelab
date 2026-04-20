@@ -34,8 +34,9 @@ def staff_item(name: str, texture: str, damage: int = 2):
 
 
 def orb_item(name: str, texture: str):
-    # Orbs are consumable unlock keys: eat one, go through the dizzy
-    # awakening animation, and awaken with the full elemental staff kit.
+    # In v4 orbs are no longer consumed by the player; the GUI triggers the
+    # awakening directly. These item defs remain so the textures can be
+    # referenced as icons in forms and kept for future uses.
     return {
         "format_version": "1.20.10",
         "minecraft:item": {
@@ -51,12 +52,6 @@ def orb_item(name: str, texture: str):
                 "minecraft:display_name": {"value": name.replace("_", " ").title()},
                 "minecraft:max_stack_size": 1,
                 "minecraft:hand_equipped": True,
-                "minecraft:use_animation": "drink",
-                "minecraft:food": {
-                    "nutrition": 0,
-                    "saturation_modifier": "low",
-                    "can_always_eat": True
-                },
                 "minecraft:glint": True
             }
         }

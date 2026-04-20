@@ -1072,7 +1072,7 @@ const darkScytheSkills = {
 };
 
 // ---------------------------------------------------------------------------
-// skill dispatch table
+// skill dispatch table + v4 metadata (names + per-staff colors/icons)
 // ---------------------------------------------------------------------------
 const SKILL_SETS = {
   [`${NS}:fire_staff`]: fireSkills,
@@ -1084,6 +1084,123 @@ const SKILL_SETS = {
   [`${NS}:dark_staff`]: darkSkills,
   [`${NS}:dark_scythe`]: darkScytheSkills,
 };
+
+const MODE_ORDER = ["tap", "sneak", "up", "down", "air", "water", "sneak_up", "sneak_down"];
+const MODE_LABEL = {
+  tap: "Tap",
+  sneak: "Sneak",
+  up: "Look Up",
+  down: "Look Down",
+  air: "Airborne",
+  water: "In Water",
+  sneak_up: "Sneak + Up",
+  sneak_down: "Sneak + Down",
+};
+
+const SKILL_NAMES = {
+  [`${NS}:fire_staff`]:      { tap: "Fireball",       sneak: "Flame Nova",      up: "Meteor Rain",      down: "Lava Pool",      air: "Fire Dash",      water: "Steam Burst",      sneak_up: "Inferno",            sneak_down: "Phoenix Dive" },
+  [`${NS}:water_staff`]:     { tap: "Tidal Lance",    sneak: "Aqua Restore",    up: "Rain Heal",        down: "Whirlpool",      air: "Water Slide",    water: "Tide Blessing",    sneak_up: "Tsunami",            sneak_down: "Frost Nova" },
+  [`${NS}:earth_staff`]:     { tap: "Stone Spike",    sneak: "Quake Stomp",     up: "Boulder Toss",     down: "Fissure",        air: "Earth Fall",     water: "Mud Trap",         sneak_up: "Mountain Rise",      sneak_down: "Earthquake" },
+  [`${NS}:air_staff`]:       { tap: "Gust Dash",      sneak: "Sky Leap",        up: "Tornado",          down: "Pressure Wave",  air: "Hover",          water: "Air Bubble",       sneak_up: "Hurricane",          sneak_down: "Wind Slam" },
+  [`${NS}:lightning_staff`]: { tap: "Thunder Strike", sneak: "Chain Lightning", up: "Thunder Cloud",    down: "Ground Shock",   air: "Lightning Dash", water: "Static Discharge", sneak_up: "Thunder Storm",      sneak_down: "Ion Surge" },
+  [`${NS}:light_staff`]:     { tap: "Solar Beam",     sneak: "Radiant Pulse",   up: "Divine Judgement", down: "Holy Ground",    air: "Light Step",     water: "Purify",           sneak_up: "Celestial",          sneak_down: "Sanctum" },
+  [`${NS}:dark_staff`]:      { tap: "Void Grasp",     sneak: "Shadow Step",     up: "Eclipse",          down: "Shadow Pit",     air: "Wraith Form",    water: "Abyssal Wave",     sneak_up: "Darkness Incarnate", sneak_down: "Soul Siphon" },
+  [`${NS}:dark_scythe`]:     { tap: "Shadow Slash",   sneak: "Soul Reap",       up: "Reaper's Call",    down: "Cemetery",       air: "Grim Glide",     water: "Drowned Harvest",  sneak_up: "Death Harvest",      sneak_down: "Graveyard" },
+};
+
+const STAFF_META = {
+  [`${NS}:fire_staff`]:      { label: "Fire Staff",      color: "c", icon: "textures/items/elem_fire_orb",      sound: "mob.blaze.shoot" },
+  [`${NS}:water_staff`]:     { label: "Water Staff",     color: "b", icon: "textures/items/elem_water_orb",     sound: "random.splash" },
+  [`${NS}:earth_staff`]:     { label: "Earth Staff",     color: "2", icon: "textures/items/elem_earth_orb",     sound: "dig.stone" },
+  [`${NS}:air_staff`]:       { label: "Air Staff",       color: "f", icon: "textures/items/elem_air_orb",       sound: "mob.bat.takeoff" },
+  [`${NS}:lightning_staff`]: { label: "Lightning Staff", color: "e", icon: "textures/items/elem_lightning_orb", sound: "ambient.weather.thunder" },
+  [`${NS}:light_staff`]:     { label: "Light Staff",     color: "e", icon: "textures/items/elem_light_orb",     sound: "beacon.activate" },
+  [`${NS}:dark_staff`]:      { label: "Dark Staff",      color: "5", icon: "textures/items/elem_dark_orb",      sound: "mob.wither.ambient" },
+  [`${NS}:dark_scythe`]:     { label: "Dark Scythe",     color: "5", icon: "textures/items/elem_dark_scythe",   sound: "mob.wither.shoot" },
+};
+
+function modeStatus(player, itemId, mode) {
+  const ticks = SKILL_COOLDOWNS[mode] ?? 20;
+  const last = getCooldown(player, `${itemId}:${mode}`);
+  const now = system.currentTick;
+  if (typeof last === "number" && now - last < ticks) {
+    return { ready: false, remaining: ((ticks - (now - last)) / 20).toFixed(1) };
+  }
+  return { ready: true, remaining: 0 };
+}
+
+// v4 cast wrapper: adds a title card, camera shake, charged sound, particle halo.
+function castSkill(player, itemId, mode) {
+  const set = SKILL_SETS[itemId];
+  const meta = STAFF_META[itemId];
+  const names = SKILL_NAMES[itemId];
+  if (!set || !meta || !names) return;
+  const fn = set[mode] || set.tap;
+  if (!fn) return;
+  const cdKey = `${itemId}:${mode}`;
+  const ticks = SKILL_COOLDOWNS[mode] ?? 20;
+  if (!checkCooldownTicks(player, cdKey, ticks)) return;
+
+  try {
+    player.onScreenDisplay.setTitle(`§${meta.color}§l${names[mode]}`, {
+      fadeInDuration: 2,
+      stayDuration: 18,
+      fadeOutDuration: 8,
+      subtitle: `§7${MODE_LABEL[mode]}`,
+    });
+  } catch (e) { /* */ }
+
+  const heavy = mode === "sneak_up" || mode === "sneak_down";
+  runCmd(player, `camerashake add @s ${heavy ? 1.8 : 0.7} ${heavy ? 0.7 : 0.35} positional`);
+  try { player.playSound(meta.sound); } catch (e) { /* */ }
+
+  const dim = player.dimension;
+  for (let i = 0; i < 16; i++) {
+    const a = (Math.PI * 2 * i) / 16;
+    safeParticle(dim, "minecraft:villager_happy",
+      vAdd(player.location, { x: Math.cos(a) * 1.3, y: 1.2, z: Math.sin(a) * 1.3 }));
+    safeParticle(dim, heavy ? "minecraft:mobspell_emitter" : "minecraft:critical_hit_emitter",
+      vAdd(player.location, { x: Math.cos(a) * 0.6, y: 0.6 + Math.random() * 1.4, z: Math.sin(a) * 0.6 }));
+  }
+  tryActionBar(player, `§${meta.color}§l${names[mode]}§r §8— §7${MODE_LABEL[mode]}`);
+
+  try { fn(player); } catch (e) {
+    try { console.warn(`cast err ${itemId}/${mode}: ${e}`); } catch (_) { /* */ }
+  }
+}
+
+// v4 skill-picker modal: 8 named skills with live cooldown status.
+function openSkillMenu(player, itemId) {
+  const meta = STAFF_META[itemId];
+  const names = SKILL_NAMES[itemId];
+  if (!meta || !names) return;
+  const form = new ActionFormData()
+    .title(`§${meta.color}§l${meta.label}`)
+    .body(
+      "§7Tap a skill to cast it.\n" +
+      "§8Each skill has its own cooldown.\n" +
+      "§5uekermjheh on rblx",
+    );
+
+  const ordered = MODE_ORDER;
+  for (const mode of ordered) {
+    const status = modeStatus(player, itemId, mode);
+    const statusText = status.ready ? "§aReady" : `§c${status.remaining}s`;
+    form.button(
+      `§${meta.color}§l${names[mode]}§r\n§8${MODE_LABEL[mode]} §7| ${statusText}`,
+      meta.icon,
+    );
+  }
+  form.button("§c§lClose", meta.icon);
+
+  form.show(player).then((res) => {
+    if (!res || res.canceled) return;
+    const idx = res.selection;
+    if (typeof idx !== "number") return;
+    if (idx >= ordered.length) return;
+    castSkill(player, itemId, ordered[idx]);
+  }).catch((e) => { try { console.warn(`skill menu: ${e}`); } catch (_) { /* */ } });
+}
 
 // ---------------------------------------------------------------------------
 // grant / awakening
@@ -1098,16 +1215,29 @@ function giveItem(player, typeId, amount) {
   } catch (e) { try { console.warn(`giveItem ${typeId}: ${e}`); } catch (_) { /* */ } }
 }
 
-function grantElementOrb(player, el) {
-  giveItem(player, `${NS}:${el.id}_orb`, 1);
-  player.sendMessage(`§${el.color}§l[Elemental Powers]§r §7You received a §${el.color}${el.label} Orb§7. §8Hold-tap to consume and awaken.`);
-  try { player.playSound("random.pop"); } catch (e) { /* */ }
+// v4: picking in the GUI makes the orb pass INTO the player. No item is
+// granted; the awakening runs immediately.
+function grantElement(player, el) {
+  player.sendMessage(`§${el.color}§l[Elemental Powers]§r §7The §${el.color}${el.label} Orb§7 flows §finto§7 you...`);
+  try { player.playSound("random.orb"); } catch (e) { /* */ }
+  const dim = player.dimension;
+  for (let i = 0; i < 24; i++) {
+    const a = Math.random() * Math.PI * 2;
+    safeParticle(dim, "minecraft:villager_happy",
+      vAdd(player.location, { x: Math.cos(a) * 1.6, y: 1 + Math.random() * 1.5, z: Math.sin(a) * 1.6 }));
+  }
+  beginAwakening(player, el.id);
 }
 
-function grantAllOrbs(player) {
-  for (const el of ELEMENTS) giveItem(player, `${NS}:${el.id}_orb`, 1);
-  player.sendMessage("§d§l[Elemental Powers]§r §7All §delemental orbs§7 granted. Eat each to awaken.");
+function grantAll(player) {
+  player.sendMessage("§d§l[Elemental Powers]§r §7All §delemental essences§7 surge §finto§7 you.");
   try { player.playSound("random.levelup"); } catch (e) { /* */ }
+  let delay = 0;
+  for (const el of ELEMENTS) {
+    const pickEl = el;
+    system.runTimeout(() => beginAwakening(player, pickEl.id), delay);
+    delay += AWAKENING_TICKS + 10;
+  }
 }
 
 const AWAKENING_TICKS = 80; // 4 seconds dizzy
@@ -1158,8 +1288,13 @@ function beginAwakening(player, elementId) {
     giveItem(player, ELEMENT_TO_STAFF[elementId], 1);
     if (elementId === "dark") giveItem(player, `${NS}:dark_scythe`, 1);
     player.sendMessage(
-      `§${el.color}§l[Awakened]§r §7You now wield the §${el.color}${el.label} Staff§7. §8Eight unique skills selected by stance + look + environment.`,
+      `§${el.color}§l[Awakened]§r §7You now wield the §${el.color}${el.label} Staff§7. §8Tap it to open the skill menu.`,
     );
+    try {
+      player.onScreenDisplay.setTitle(`§${el.color}§l${el.label} Awakened`, {
+        fadeInDuration: 4, stayDuration: 30, fadeOutDuration: 10, subtitle: "§78 skills unlocked",
+      });
+    } catch (e) { /* */ }
     tryActionBar(player, `§${el.color}§l${el.label} Awakening complete`);
     // Starburst effect
     for (let i = 0; i < 20; i++) {
@@ -1175,31 +1310,45 @@ function beginAwakening(player, elementId) {
 // ---------------------------------------------------------------------------
 function openGui(player) {
   const form = new ActionFormData()
-    .title("§5§lElemental Powers")
+    .title("§5§lElemental Powers v4")
     .body(
-      "§7Pick an element to claim its §forb§7.\n" +
-      "§8Eat the orb, endure the dizzy §7awakening§8, and you will receive a\n" +
-      "§8staff wielding §f8 unique skills§8 dispatched by stance + look + environment.\n" +
+      "§7Pick an element. The orb flows §finto§7 you, you get §fdizzy§7 for a\n" +
+      "§7few seconds, and then wake up wielding the §fstaff§7 with §f8 unique skills§7.\n" +
+      "§8Tap the staff later to open a skill menu with cooldowns.\n" +
       "§5uekermjheh on rblx",
     );
   for (const el of ELEMENTS) form.button(`§${el.color}§l${el.label}§r\n§7${el.subtitle}`, el.icon);
-  form.button("§d§lAll Orbs§r\n§7Every element at once", "textures/items/elem_gui_tool");
+  form.button("§d§lAll Elements§r\n§7Awaken to every element in sequence", "textures/items/elem_gui_tool");
   form.button("§c§lCancel", "textures/items/elem_dark_orb");
 
   form.show(player).then((res) => {
     if (!res || res.canceled) return;
     const idx = res.selection;
     if (typeof idx !== "number") return;
-    if (idx < ELEMENTS.length) return grantElementOrb(player, ELEMENTS[idx]);
-    if (idx === ELEMENTS.length) return grantAllOrbs(player);
+    if (idx < ELEMENTS.length) return grantElement(player, ELEMENTS[idx]);
+    if (idx === ELEMENTS.length) return grantAll(player);
   }).catch((err) => { try { console.warn(`form error: ${err}`); } catch (e) { /* */ } });
+}
+
+// v4 welcome shown on first spawn.
+function openBetaWelcome(player) {
+  const form = new ActionFormData()
+    .title("§5§lElemental Powers")
+    .body(
+      "§7beta v4 version idk if there are bugs now\n\n" +
+      "§8Tap the §dGUI Tool§8 or type §b!getmygui§8 to open the element picker.\n" +
+      "§8Tap any staff in your hand to open its §fskill menu§8 with live cooldowns.\n" +
+      "§5uekermjheh on rblx",
+    )
+    .button("§c§lClose", "textures/items/elem_gui_tool");
+  form.show(player).catch(() => { /* */ });
 }
 
 // ---------------------------------------------------------------------------
 // listeners
 // ---------------------------------------------------------------------------
 
-// 1) Staff/scythe/gui-tool use
+// 1) Staff/scythe/gui-tool use -> opens a menu (v4)
 function handleItemUse(source, itemStack) {
   const id = itemStack && itemStack.typeId;
   if (!id || !source) return;
@@ -1208,42 +1357,13 @@ function handleItemUse(source, itemStack) {
     system.run(() => openGui(source));
     return;
   }
-  const set = SKILL_SETS[id];
-  if (!set) return;
-  system.run(() => dispatchStaff(source, id, set));
+  if (SKILL_SETS[id]) {
+    if (!checkCooldownTicks(source, `${id}:menu`, 4)) return;
+    system.run(() => openSkillMenu(source, id));
+  }
 }
 
 try { world.afterEvents.itemUse.subscribe((ev) => handleItemUse(ev.source, ev.itemStack)); } catch (e) { /* */ }
-
-// 2) Orb consumption -> awakening
-try {
-  world.afterEvents.itemCompleteUse.subscribe((ev) => {
-    const player = ev.source;
-    const id = ev.itemStack && ev.itemStack.typeId;
-    if (!player || !id) return;
-    const elementId = ORB_TO_ELEMENT[id];
-    if (!elementId) return;
-    system.run(() => beginAwakening(player, elementId));
-  });
-} catch (e) { /* fallback below */ }
-
-// Fallback for engines without itemCompleteUse: start awakening a short delay
-// after itemStartUse and verify the player still holds the orb.
-try {
-  world.afterEvents.itemStartUse.subscribe((ev) => {
-    const player = ev.source;
-    const id = ev.itemStack && ev.itemStack.typeId;
-    const elementId = id && ORB_TO_ELEMENT[id];
-    if (!player || !elementId) return;
-    system.runTimeout(() => {
-      try {
-        const equip = player.getComponent("minecraft:equippable");
-        const mh = equip && equip.getEquipment && equip.getEquipment(EquipmentSlot.Mainhand);
-        if (mh && mh.typeId === id) beginAwakening(player, elementId);
-      } catch (e) { /* */ }
-    }, 36);
-  });
-} catch (e) { /* */ }
 
 // 3) Chat trigger - Bedrock blocks "/"-prefixed messages
 try {
@@ -1310,8 +1430,8 @@ try {
   });
 } catch (e) { /* */ }
 
-// 7) First-spawn welcome: give GUI Tool + instructions
-const GIVEN_TAG = "elempower_given_gui_v3";
+// 7) First-spawn welcome: give GUI Tool + show beta welcome form.
+const GIVEN_TAG = "elempower_given_gui_v4";
 try {
   world.afterEvents.playerSpawn.subscribe((ev) => {
     if (!ev.initialSpawn) return;
@@ -1323,7 +1443,8 @@ try {
           giveItem(player, `${NS}:gui_tool`, 1);
           player.addTag(GIVEN_TAG);
         }
-        player.sendMessage("§5§l[Elemental Powers v3]§r §7Tap the §dGUI Tool§7 or type §b!getmygui§7. Pick an element, eat the orb, survive the dizzy awakening.");
+        player.sendMessage("§5§l[Elemental Powers v4]§r §7Tap the §dGUI Tool§7 or type §b!getmygui§7. Pick an element; the orb enters you, you get dizzy, then awaken.");
+        system.runTimeout(() => openBetaWelcome(player), 30);
       } catch (e) { /* */ }
     });
   });
@@ -1331,6 +1452,49 @@ try {
 
 // 8) Startup broadcast
 system.run(() => {
-  try { world.sendMessage("§5§l[Elemental Powers v3]§r §7scripts loaded - §5uekermjheh on rblx"); } catch (e) { /* */ }
-  try { console.log("[Elemental Powers v3] ready"); } catch (e) { /* */ }
+  try { world.sendMessage("§5§l[Elemental Powers v4]§r §7scripts loaded - §5uekermjheh on rblx"); } catch (e) { /* */ }
+  try { console.log("[Elemental Powers v4] ready"); } catch (e) { /* */ }
 });
+
+// 9) Persistent action-bar readout while holding a staff/scythe. This is as
+// close to a pinned side-HUD as Bedrock scripting allows: a live ticker that
+// shows the current weapon and its most-constrained cooldown.
+function currentMainhandId(player) {
+  try {
+    const equip = player.getComponent("minecraft:equippable");
+    const slot = equip && equip.getEquipment && equip.getEquipment(EquipmentSlot.Mainhand);
+    return slot && slot.typeId;
+  } catch (e) { return undefined; }
+}
+
+function buildReadout(player, itemId) {
+  const meta = STAFF_META[itemId];
+  const names = SKILL_NAMES[itemId];
+  if (!meta || !names) return "";
+  let worstMode;
+  let worstRemaining = 0;
+  for (const mode of MODE_ORDER) {
+    const s = modeStatus(player, itemId, mode);
+    if (!s.ready) {
+      const r = parseFloat(s.remaining);
+      if (r > worstRemaining) { worstRemaining = r; worstMode = mode; }
+    }
+  }
+  const tail = worstMode
+    ? ` §8| §c${names[worstMode]} §8${worstRemaining.toFixed(1)}s`
+    : " §8| §aAll skills ready";
+  return `§${meta.color}§l${meta.label}§r §8• §7Tap to open menu${tail}`;
+}
+
+try {
+  system.runInterval(() => {
+    let players = [];
+    try { players = world.getAllPlayers(); } catch (e) { return; }
+    for (const p of players) {
+      const id = currentMainhandId(p);
+      if (!id || !STAFF_META[id]) continue;
+      const text = buildReadout(p, id);
+      if (text) tryActionBar(p, text);
+    }
+  }, 10);
+} catch (e) { /* */ }
