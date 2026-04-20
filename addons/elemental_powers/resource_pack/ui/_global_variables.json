@@ -1,0 +1,6 @@
+{
+  "$elempower_primary_color": [0.68, 0.32, 0.86],
+  "$elempower_accent_color": [0.95, 0.85, 0.35],
+  "$elempower_dark_panel": [0.05, 0.02, 0.12],
+  "$elempower_text_shadow": true
+}

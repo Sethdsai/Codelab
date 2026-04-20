@@ -1,0 +1,42 @@
+{
+  "namespace": "hud",
+
+  "root_panel": {
+    "modifications": [
+      {
+        "array_name": "controls",
+        "operation": "insert_back",
+        "value": [
+          {
+            "elempower_side_panel@elempower_hud.side_panel": {}
+          }
+        ]
+      }
+    ]
+  },
+
+  "hud_actionbar_text": {
+    "type": "label",
+    "text": "#hud_actionbar_text_string",
+    "color": "$elempower_accent_color",
+    "shadow": true,
+    "font_type": "smooth",
+    "font_scale_factor": 0.95,
+    "layer": 20,
+    "anchor_from": "right_middle",
+    "anchor_to": "right_middle",
+    "offset": [-12, 10],
+    "size": ["default", 12],
+    "text_alignment": "right",
+    "bindings": [
+      {
+        "binding_name": "#hud_actionbar_text_string"
+      },
+      {
+        "binding_type": "view",
+        "source_property_name": "(not (#hud_actionbar_text_string = ''))",
+        "target_property_name": "#visible"
+      }
+    ]
+  }
+}

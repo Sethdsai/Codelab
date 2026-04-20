@@ -1,0 +1,58 @@
+{
+  "namespace": "elempower_hud",
+
+  "side_panel_bg": {
+    "type": "image",
+    "texture": "textures/ui/dialog_background_opaque",
+    "size": [80, 150],
+    "anchor_from": "right_middle",
+    "anchor_to": "right_middle",
+    "offset": [-4, -20],
+    "alpha": 0.78,
+    "layer": 1
+  },
+
+  "side_panel_title": {
+    "type": "label",
+    "text": "§5§lElemental\n§5§lPowers",
+    "color": "$elempower_accent_color",
+    "shadow": "$elempower_text_shadow",
+    "text_alignment": "center",
+    "font_scale_factor": 0.9,
+    "anchor_from": "top_middle",
+    "anchor_to": "top_middle",
+    "offset": [0, 6],
+    "size": ["default", 20]
+  },
+
+  "side_panel_divider": {
+    "type": "image",
+    "texture": "textures/ui/divider_dark",
+    "size": [68, 2],
+    "anchor_from": "top_middle",
+    "anchor_to": "top_middle",
+    "offset": [0, 30],
+    "alpha": 0.9
+  },
+
+  "side_panel_subtitle": {
+    "type": "label",
+    "text": "§7uekermjheh\n§7on rblx",
+    "color": [0.78, 0.78, 0.82],
+    "shadow": true,
+    "text_alignment": "center",
+    "font_scale_factor": 0.7,
+    "anchor_from": "bottom_middle",
+    "anchor_to": "bottom_middle",
+    "offset": [0, -8],
+    "size": ["default", 16]
+  },
+
+  "side_panel@elempower_hud.side_panel_bg": {
+    "controls": [
+      { "title@elempower_hud.side_panel_title": {} },
+      { "divider@elempower_hud.side_panel_divider": {} },
+      { "subtitle@elempower_hud.side_panel_subtitle": {} }
+    ]
+  }
+}

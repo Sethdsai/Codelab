@@ -1310,7 +1310,7 @@ function beginAwakening(player, elementId) {
 // ---------------------------------------------------------------------------
 function openGui(player) {
   const form = new ActionFormData()
-    .title("§5§lElemental Powers v4")
+    .title("§5§lElemental Powers v5")
     .body(
       "§7Pick an element. The orb flows §finto§7 you, you get §fdizzy§7 for a\n" +
       "§7few seconds, and then wake up wielding the §fstaff§7 with §f8 unique skills§7.\n" +
@@ -1335,7 +1335,7 @@ function openBetaWelcome(player) {
   const form = new ActionFormData()
     .title("§5§lElemental Powers")
     .body(
-      "§7beta v4 version idk if there are bugs now\n\n" +
+      "§7beta v5 version idk if there are bugs now\n\n" +
       "§8Tap the §dGUI Tool§8 or type §b!getmygui§8 to open the element picker.\n" +
       "§8Tap any staff in your hand to open its §fskill menu§8 with live cooldowns.\n" +
       "§5uekermjheh on rblx",
@@ -1431,7 +1431,7 @@ try {
 } catch (e) { /* */ }
 
 // 7) First-spawn welcome: give GUI Tool + show beta welcome form.
-const GIVEN_TAG = "elempower_given_gui_v4";
+const GIVEN_TAG = "elempower_given_gui_v5";
 try {
   world.afterEvents.playerSpawn.subscribe((ev) => {
     if (!ev.initialSpawn) return;
@@ -1443,7 +1443,7 @@ try {
           giveItem(player, `${NS}:gui_tool`, 1);
           player.addTag(GIVEN_TAG);
         }
-        player.sendMessage("§5§l[Elemental Powers v4]§r §7Tap the §dGUI Tool§7 or type §b!getmygui§7. Pick an element; the orb enters you, you get dizzy, then awaken.");
+        player.sendMessage("§5§l[Elemental Powers v5]§r §7Tap the §dGUI Tool§7 or type §b!getmygui§7. Pick an element; the orb enters you, you get dizzy, then awaken.");
         system.runTimeout(() => openBetaWelcome(player), 30);
       } catch (e) { /* */ }
     });
@@ -1452,8 +1452,8 @@ try {
 
 // 8) Startup broadcast
 system.run(() => {
-  try { world.sendMessage("§5§l[Elemental Powers v4]§r §7scripts loaded - §5uekermjheh on rblx"); } catch (e) { /* */ }
-  try { console.log("[Elemental Powers v4] ready"); } catch (e) { /* */ }
+  try { world.sendMessage("§5§l[Elemental Powers v5]§r §7scripts loaded - §5uekermjheh on rblx"); } catch (e) { /* */ }
+  try { console.log("[Elemental Powers v5] ready"); } catch (e) { /* */ }
 });
 
 // 9) Persistent action-bar readout while holding a staff/scythe. This is as
