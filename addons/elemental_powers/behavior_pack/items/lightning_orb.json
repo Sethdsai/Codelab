@@ -1,0 +1,22 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:item": {
+    "description": {
+      "identifier": "elempower:lightning_orb",
+      "menu_category": {
+        "category": "items",
+        "group": "itemGroup.name.elemental_powers"
+      }
+    },
+    "components": {
+      "minecraft:icon": {
+        "texture": "elem_lightning_orb"
+      },
+      "minecraft:display_name": {
+        "value": "Lightning Orb"
+      },
+      "minecraft:max_stack_size": 16,
+      "minecraft:glint": true
+    }
+  }
+}

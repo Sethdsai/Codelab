@@ -1,0 +1,24 @@
+{
+  "resource_pack_name": "elemental_powers",
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "elem_gui_tool": { "textures": "textures/items/elem_gui_tool" },
+    "elem_dark_scythe": { "textures": "textures/items/elem_dark_scythe" },
+
+    "elem_fire_staff": { "textures": "textures/items/elem_fire_staff" },
+    "elem_water_staff": { "textures": "textures/items/elem_water_staff" },
+    "elem_earth_staff": { "textures": "textures/items/elem_earth_staff" },
+    "elem_air_staff": { "textures": "textures/items/elem_air_staff" },
+    "elem_lightning_staff": { "textures": "textures/items/elem_lightning_staff" },
+    "elem_light_staff": { "textures": "textures/items/elem_light_staff" },
+    "elem_dark_staff": { "textures": "textures/items/elem_dark_staff" },
+
+    "elem_fire_orb": { "textures": "textures/items/elem_fire_orb" },
+    "elem_water_orb": { "textures": "textures/items/elem_water_orb" },
+    "elem_earth_orb": { "textures": "textures/items/elem_earth_orb" },
+    "elem_air_orb": { "textures": "textures/items/elem_air_orb" },
+    "elem_lightning_orb": { "textures": "textures/items/elem_lightning_orb" },
+    "elem_light_orb": { "textures": "textures/items/elem_light_orb" },
+    "elem_dark_orb": { "textures": "textures/items/elem_dark_orb" }
+  }
+}

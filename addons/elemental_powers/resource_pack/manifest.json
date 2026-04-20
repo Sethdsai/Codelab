@@ -1,0 +1,28 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Elemental Powers (RP)",
+    "description": "uekermjheh on rblx",
+    "uuid": "dbe74cd2-424e-44cf-a995-952c6301792f",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 21, 70]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "701824e3-289e-436a-a5eb-a97ae1660b69",
+      "version": [1, 0, 0]
+    }
+  ],
+  "dependencies": [
+    {
+      "uuid": "3d2485df-b7ec-4dcb-8250-f1051471f381",
+      "version": [1, 0, 0]
+    }
+  ],
+  "metadata": {
+    "authors": ["uekermjheh"],
+    "license": "MIT",
+    "product_type": "addon"
+  }
+}

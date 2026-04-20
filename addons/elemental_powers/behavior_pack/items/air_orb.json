@@ -1,0 +1,22 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:item": {
+    "description": {
+      "identifier": "elempower:air_orb",
+      "menu_category": {
+        "category": "items",
+        "group": "itemGroup.name.elemental_powers"
+      }
+    },
+    "components": {
+      "minecraft:icon": {
+        "texture": "elem_air_orb"
+      },
+      "minecraft:display_name": {
+        "value": "Air Orb"
+      },
+      "minecraft:max_stack_size": 16,
+      "minecraft:glint": true
+    }
+  }
+}
