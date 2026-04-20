@@ -21,8 +21,7 @@
       "minecraft:durability": {
         "max_durability": 2000
       },
-      "minecraft:use_animation": "bow",
-      "minecraft:use_duration": 3600,
+      "minecraft:use_animation": "eat",
       "minecraft:glint": true
     }
   }

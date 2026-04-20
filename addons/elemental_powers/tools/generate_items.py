@@ -26,8 +26,7 @@ def staff_item(name: str, texture: str, damage: int = 2):
                 "minecraft:hand_equipped": True,
                 "minecraft:damage": damage,
                 "minecraft:durability": {"max_durability": 2000},
-                "minecraft:use_animation": "bow",
-                "minecraft:use_duration": 3600,
+                "minecraft:use_animation": "eat",
                 "minecraft:glint": True
             }
         }
@@ -73,8 +72,7 @@ def scythe_item():
                 "minecraft:hand_equipped": True,
                 "minecraft:damage": 9,
                 "minecraft:durability": {"max_durability": 3000},
-                "minecraft:use_animation": "bow",
-                "minecraft:use_duration": 3600,
+                "minecraft:use_animation": "eat",
                 "minecraft:glint": True
             }
         }
@@ -97,8 +95,7 @@ def gui_tool_item():
                 "minecraft:display_name": {"value": "GUI Tool"},
                 "minecraft:max_stack_size": 1,
                 "minecraft:hand_equipped": True,
-                "minecraft:use_animation": "bow",
-                "minecraft:use_duration": 3600,
+                "minecraft:use_animation": "eat",
                 "minecraft:glint": True
             }
         }
