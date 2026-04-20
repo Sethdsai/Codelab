@@ -643,13 +643,68 @@ const airSkills = {
 // ---------------------------------------------------------------------------
 // LIGHTNING - 8 skills
 // ---------------------------------------------------------------------------
+// v6 flagship skill: Lightning Chain. Picks the mob you're aiming at, draws
+// a trail of custom elempower:chain_link particles between you and it for 4s,
+// tags the mob 'elempower_chained'. If the mob dies while chained, a burial
+// effect (explosion + dirt fill under feet) fires from the entityDie listener.
+// If it survives 4s, the chain fades and the tag is removed.
+const CHAIN_DURATION_TICKS = 80;
+const CHAIN_RANGE = 14;
+
+function castLightningChain(player) {
+  const dim = player.dimension;
+  let target;
+  try {
+    const ray = player.getEntitiesFromViewDirection({ maxDistance: CHAIN_RANGE });
+    if (ray && ray.length) {
+      for (const hit of ray) {
+        const e = hit.entity;
+        if (e && e.typeId !== "minecraft:player" && e.isValid && e.isValid()) { target = e; break; }
+      }
+    }
+  } catch (e) { /* */ }
+  if (!target) {
+    try { player.onScreenDisplay.setActionBar("§e§lLightning Chain §7- §cno target in sight"); } catch (e) { /* */ }
+    return;
+  }
+
+  try { target.addTag("elempower_chained"); } catch (e) { /* */ }
+  try { player.playSound("mob.creeper.say"); } catch (e) { /* */ }
+  damage(target, 8, player, EntityDamageCause.lightning);
+
+  let elapsed = 0;
+  const handle = system.runInterval(() => {
+    elapsed += 2;
+    let alive = false;
+    try { alive = target && target.isValid && target.isValid(); } catch (e) { alive = false; }
+    if (!alive || elapsed >= CHAIN_DURATION_TICKS) {
+      try { system.clearRun(handle); } catch (e) { /* */ }
+      try { if (target && target.hasTag && target.hasTag("elempower_chained")) target.removeTag("elempower_chained"); } catch (e) { /* */ }
+      return;
+    }
+    const pLoc = player.location;
+    const tLoc = target.location;
+    const dx = tLoc.x - pLoc.x, dy = (tLoc.y + 1) - (pLoc.y + 1.2), dz = tLoc.z - pLoc.z;
+    const steps = 14;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const jitter = 0.08;
+      const loc = {
+        x: pLoc.x + dx * t + (Math.random() - 0.5) * jitter,
+        y: pLoc.y + 1.2 + dy * t + (Math.random() - 0.5) * jitter,
+        z: pLoc.z + dz * t + (Math.random() - 0.5) * jitter,
+      };
+      safeParticle(dim, "elempower:chain_link", loc);
+    }
+    if (elapsed % 10 === 0) {
+      try { target.applyKnockback(0, 0, 0, -0.1); } catch (e) { /* */ }
+    }
+  }, 2);
+}
+
 const lightningSkills = {
   tap(player) {
-    const target = raycastEntity(player, 32);
-    const loc = target ? target.location : raycastBlockLocation(player, 32);
-    if (target) damage(target, 12, player, EntityDamageCause.lightning);
-    try { player.dimension.spawnEntity("minecraft:lightning_bolt", loc); } catch (e) { /* */ }
-    tryActionBar(player, "§e§lThunder Strike");
+    castLightningChain(player);
   },
   sneak(player) {
     const near = entitiesNear(player.dimension, player.location, 20, player.id).slice(0, 5);
@@ -1129,7 +1184,19 @@ function modeStatus(player, itemId, mode) {
   return { ready: true, remaining: 0 };
 }
 
-// v4 cast wrapper: adds a title card, camera shake, charged sound, particle halo.
+// v6 cast wrapper: no huge title card, just camera shake + themed sound +
+// themed custom particle halo using the pack's own particle textures.
+const STAFF_PARTICLE = {
+  [`${NS}:fire_staff`]:      "elempower:ember",
+  [`${NS}:water_staff`]:     "elempower:frost_crystal",
+  [`${NS}:earth_staff`]:     "elempower:ember",
+  [`${NS}:air_staff`]:       "elempower:divine_spark",
+  [`${NS}:lightning_staff`]: "elempower:chain_link",
+  [`${NS}:light_staff`]:     "elempower:divine_spark",
+  [`${NS}:dark_staff`]:      "elempower:shadow_wisp",
+  [`${NS}:dark_scythe`]:     "elempower:shadow_wisp",
+};
+
 function castSkill(player, itemId, mode) {
   const set = SKILL_SETS[itemId];
   const meta = STAFF_META[itemId];
@@ -1141,28 +1208,22 @@ function castSkill(player, itemId, mode) {
   const ticks = SKILL_COOLDOWNS[mode] ?? 20;
   if (!checkCooldownTicks(player, cdKey, ticks)) return;
 
-  try {
-    player.onScreenDisplay.setTitle(`§${meta.color}§l${names[mode]}`, {
-      fadeInDuration: 2,
-      stayDuration: 18,
-      fadeOutDuration: 8,
-      subtitle: `§7${MODE_LABEL[mode]}`,
-    });
-  } catch (e) { /* */ }
-
   const heavy = mode === "sneak_up" || mode === "sneak_down";
-  runCmd(player, `camerashake add @s ${heavy ? 1.8 : 0.7} ${heavy ? 0.7 : 0.35} positional`);
+  runCmd(player, `camerashake add @s ${heavy ? 1.6 : 0.55} ${heavy ? 0.6 : 0.28} positional`);
   try { player.playSound(meta.sound); } catch (e) { /* */ }
 
   const dim = player.dimension;
-  for (let i = 0; i < 16; i++) {
-    const a = (Math.PI * 2 * i) / 16;
-    safeParticle(dim, "minecraft:villager_happy",
-      vAdd(player.location, { x: Math.cos(a) * 1.3, y: 1.2, z: Math.sin(a) * 1.3 }));
+  const customP = STAFF_PARTICLE[itemId];
+  for (let i = 0; i < 18; i++) {
+    const a = (Math.PI * 2 * i) / 18;
+    const r = 1.25 + Math.random() * 0.3;
+    if (customP) {
+      safeParticle(dim, customP,
+        vAdd(player.location, { x: Math.cos(a) * r, y: 0.6 + Math.random() * 1.4, z: Math.sin(a) * r }));
+    }
     safeParticle(dim, heavy ? "minecraft:mobspell_emitter" : "minecraft:critical_hit_emitter",
       vAdd(player.location, { x: Math.cos(a) * 0.6, y: 0.6 + Math.random() * 1.4, z: Math.sin(a) * 0.6 }));
   }
-  tryActionBar(player, `§${meta.color}§l${names[mode]}§r §8— §7${MODE_LABEL[mode]}`);
 
   try { fn(player); } catch (e) {
     try { console.warn(`cast err ${itemId}/${mode}: ${e}`); } catch (_) { /* */ }
@@ -1310,7 +1371,7 @@ function beginAwakening(player, elementId) {
 // ---------------------------------------------------------------------------
 function openGui(player) {
   const form = new ActionFormData()
-    .title("§5§lElemental Powers v5")
+    .title("§5§lElemental Powers v6")
     .body(
       "§7Pick an element. The orb flows §finto§7 you, you get §fdizzy§7 for a\n" +
       "§7few seconds, and then wake up wielding the §fstaff§7 with §f8 unique skills§7.\n" +
@@ -1335,9 +1396,13 @@ function openBetaWelcome(player) {
   const form = new ActionFormData()
     .title("§5§lElemental Powers")
     .body(
-      "§7beta v5 version idk if there are bugs now\n\n" +
+      "§7beta v6 version idk if there are bugs now\n\n" +
+      "§8The right-side HUD lists all 8 skills.\n" +
+      "§8Your stance selects which one fires:\n" +
+      "§8tap / sneak / look-up / look-down / airborne / in-water /\n" +
+      "§8sneak+look-up / sneak+look-down. No more modal menu.\n\n" +
       "§8Tap the §dGUI Tool§8 or type §b!getmygui§8 to open the element picker.\n" +
-      "§8Tap any staff in your hand to open its §fskill menu§8 with live cooldowns.\n" +
+      "§8Hold a staff -> your stance auto-picks a skill; tap to fire it.\n" +
       "§5uekermjheh on rblx",
     )
     .button("§c§lClose", "textures/items/elem_gui_tool");
@@ -1348,7 +1413,10 @@ function openBetaWelcome(player) {
 // listeners
 // ---------------------------------------------------------------------------
 
-// 1) Staff/scythe/gui-tool use -> opens a menu (v4)
+// v6: tap the GUI tool opens the element picker; tap a staff casts the
+// skill matching your current stance directly (no modal menu). The
+// right-side HUD shows the full skill list so you always know what stance
+// maps to which skill.
 function handleItemUse(source, itemStack) {
   const id = itemStack && itemStack.typeId;
   if (!id || !source) return;
@@ -1358,8 +1426,8 @@ function handleItemUse(source, itemStack) {
     return;
   }
   if (SKILL_SETS[id]) {
-    if (!checkCooldownTicks(source, `${id}:menu`, 4)) return;
-    system.run(() => openSkillMenu(source, id));
+    const mode = classifyInput(source);
+    system.run(() => castSkill(source, id, mode));
   }
 }
 
@@ -1431,7 +1499,7 @@ try {
 } catch (e) { /* */ }
 
 // 7) First-spawn welcome: give GUI Tool + show beta welcome form.
-const GIVEN_TAG = "elempower_given_gui_v5";
+const GIVEN_TAG = "elempower_given_gui_v6";
 try {
   world.afterEvents.playerSpawn.subscribe((ev) => {
     if (!ev.initialSpawn) return;
@@ -1443,17 +1511,47 @@ try {
           giveItem(player, `${NS}:gui_tool`, 1);
           player.addTag(GIVEN_TAG);
         }
-        player.sendMessage("§5§l[Elemental Powers v5]§r §7Tap the §dGUI Tool§7 or type §b!getmygui§7. Pick an element; the orb enters you, you get dizzy, then awaken.");
+        player.sendMessage("§5§l[Elemental Powers v6]§r §7Tap the §dGUI Tool§7 or type §b!getmygui§7. Pick an element; the orb enters you, you get dizzy, then awaken.");
         system.runTimeout(() => openBetaWelcome(player), 30);
       } catch (e) { /* */ }
     });
   });
 } catch (e) { /* */ }
 
+// v6: Chained-mob burial. When a mob tagged by Lightning Chain dies, the
+// ground beneath them collapses into a dirt grave and an explosion of custom
+// shadow/spark particles fires at the burial site. No-op if the mob was never
+// chained.
+try {
+  world.afterEvents.entityDie.subscribe((ev) => {
+    const died = ev.deadEntity;
+    if (!died) return;
+    let wasChained = false;
+    try { wasChained = died.hasTag && died.hasTag("elempower_chained"); } catch (e) { /* */ }
+    if (!wasChained) return;
+    const loc = died.location;
+    const dim = died.dimension;
+    const fx = Math.floor(loc.x), fy = Math.floor(loc.y), fz = Math.floor(loc.z);
+    try {
+      dim.runCommand(`fill ${fx - 1} ${fy - 3} ${fz - 1} ${fx + 1} ${fy - 1} ${fz + 1} dirt 0 replace air`);
+    } catch (e) { /* */ }
+    for (let y = 0; y > -4; y--) {
+      safeParticle(dim, "minecraft:large_explosion", { x: loc.x, y: loc.y + y, z: loc.z });
+      for (let k = 0; k < 6; k++) {
+        const a = (Math.PI * 2 * k) / 6;
+        safeParticle(dim, "elempower:shadow_wisp",
+          { x: loc.x + Math.cos(a) * 1.2, y: loc.y + y, z: loc.z + Math.sin(a) * 1.2 });
+      }
+    }
+    try { dim.playSound("random.explode", loc); } catch (e) { /* */ }
+    try { dim.playSound("mob.wither.death", loc); } catch (e) { /* */ }
+  });
+} catch (e) { /* */ }
+
 // 8) Startup broadcast
 system.run(() => {
-  try { world.sendMessage("§5§l[Elemental Powers v5]§r §7scripts loaded - §5uekermjheh on rblx"); } catch (e) { /* */ }
-  try { console.log("[Elemental Powers v5] ready"); } catch (e) { /* */ }
+  try { world.sendMessage("§5§l[Elemental Powers v6]§r §7scripts loaded - §5uekermjheh on rblx"); } catch (e) { /* */ }
+  try { console.log("[Elemental Powers v6] ready"); } catch (e) { /* */ }
 });
 
 // 9) Persistent action-bar readout while holding a staff/scythe. This is as
@@ -1467,23 +1565,23 @@ function currentMainhandId(player) {
   } catch (e) { return undefined; }
 }
 
+// v6: multi-line readout rendered on the right side of the screen via the
+// JSON-UI-repositioned hud_actionbar_text. Shows the current stance (which
+// picks the skill that will fire on tap) plus every skill with live cooldown.
 function buildReadout(player, itemId) {
   const meta = STAFF_META[itemId];
   const names = SKILL_NAMES[itemId];
   if (!meta || !names) return "";
-  let worstMode;
-  let worstRemaining = 0;
+  let currentMode;
+  try { currentMode = classifyInput(player); } catch (e) { currentMode = "tap"; }
+  const lines = [`§${meta.color}§l${meta.label}`];
   for (const mode of MODE_ORDER) {
     const s = modeStatus(player, itemId, mode);
-    if (!s.ready) {
-      const r = parseFloat(s.remaining);
-      if (r > worstRemaining) { worstRemaining = r; worstMode = mode; }
-    }
+    const tag = s.ready ? "§a[READY]" : `§c[${s.remaining}s]`;
+    const prefix = mode === currentMode ? "§e§l>" : "§8 ";
+    lines.push(`${prefix} ${tag} §7${MODE_LABEL[mode]}: §f${names[mode]}`);
   }
-  const tail = worstMode
-    ? ` §8| §c${names[worstMode]} §8${worstRemaining.toFixed(1)}s`
-    : " §8| §aAll skills ready";
-  return `§${meta.color}§l${meta.label}§r §8• §7Tap to open menu${tail}`;
+  return lines.join("\n");
 }
 
 try {

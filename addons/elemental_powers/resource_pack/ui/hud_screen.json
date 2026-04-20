@@ -21,13 +21,14 @@
     "color": "$elempower_accent_color",
     "shadow": true,
     "font_type": "smooth",
-    "font_scale_factor": 0.95,
-    "layer": 20,
+    "font_scale_factor": 0.8,
+    "layer": 25,
     "anchor_from": "right_middle",
     "anchor_to": "right_middle",
-    "offset": [-12, 10],
-    "size": ["default", 12],
-    "text_alignment": "right",
+    "offset": [-8, -4],
+    "size": [140, 96],
+    "text_alignment": "left",
+    "line_padding": 0.5,
     "bindings": [
       {
         "binding_name": "#hud_actionbar_text_string"

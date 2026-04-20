@@ -8,14 +8,14 @@ mkdir -p "$OUT"
 rm -f "$OUT"/*.mcpack "$OUT"/*.mcaddon
 
 cd "$ROOT/behavior_pack"
-zip -r -q "$OUT/elemental_powers_v5_BP.mcpack" . -x "*.DS_Store"
+zip -r -q "$OUT/elemental_powers_v6_BP.mcpack" . -x "*.DS_Store"
 
 cd "$ROOT/resource_pack"
-zip -r -q "$OUT/elemental_powers_v5_RP.mcpack" . -x "*.DS_Store"
+zip -r -q "$OUT/elemental_powers_v6_RP.mcpack" . -x "*.DS_Store"
 
 cd "$OUT"
-zip -q "elemental_powers_v5.mcaddon" \
-  "elemental_powers_v5_BP.mcpack" \
-  "elemental_powers_v5_RP.mcpack"
+zip -q "elemental_powers_v6.mcaddon" \
+  "elemental_powers_v6_BP.mcpack" \
+  "elemental_powers_v6_RP.mcpack"
 
 ls -lh "$OUT"

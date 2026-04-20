@@ -1,24 +1,24 @@
 {
   "format_version": 2,
   "header": {
-    "name": "Elemental Powers v5 (BP)",
+    "name": "Elemental Powers v6 (BP)",
     "description": "uekermjheh on rblx",
-    "uuid": "85f8812c-7a98-46f9-914c-5431cad49159",
-    "version": [5, 0, 0],
+    "uuid": "045dc7ab-8b2f-420c-aa50-bc68072ec6d2",
+    "version": [6, 0, 0],
     "min_engine_version": [1, 21, 20]
   },
   "modules": [
     {
       "type": "data",
-      "uuid": "6a289f6d-ee52-4e50-990f-744c304b0e8b",
-      "version": [5, 0, 0]
+      "uuid": "8d867bbe-522c-4946-89b3-d70952ab8472",
+      "version": [6, 0, 0]
     },
     {
       "type": "script",
       "language": "javascript",
       "entry": "scripts/main.js",
-      "uuid": "aa807f32-3970-4edb-8b08-e949413cfe44",
-      "version": [5, 0, 0]
+      "uuid": "884351e7-eeb1-4ea7-9759-cf1de2b9e668",
+      "version": [6, 0, 0]
     }
   ],
   "dependencies": [
@@ -31,8 +31,8 @@
       "version": "1.2.0"
     },
     {
-      "uuid": "20997e07-2ab3-4161-807f-4681f0b02e89",
-      "version": [5, 0, 0]
+      "uuid": "e11b27e1-6094-4603-9b10-d321699c2d3b",
+      "version": [6, 0, 0]
     }
   ],
   "metadata": {
