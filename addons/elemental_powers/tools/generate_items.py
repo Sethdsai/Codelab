@@ -113,6 +113,43 @@ STAFF_DAMAGE = {
 }
 
 
+# 1.0 beta: generic skill-slot cards. Tap one to "arm" that slot; tap staff
+# to fire the armed skill. Display names are role-flavored so they never feel
+# tied to a single element.
+SKILL_CARDS = [
+    ("primary",   "Primary Rune"),
+    ("bastion",   "Bastion Rune"),
+    ("skyfall",   "Skyfall Rune"),
+    ("root",      "Rootbound Rune"),
+    ("slipstream","Slipstream Rune"),
+    ("conduit",   "Conduit Rune"),
+    ("climax",    "Climax Rune"),
+    ("plunge",    "Plunge Rune"),
+]
+
+
+def skill_card_item(slot_id: str, label: str):
+    return {
+        "format_version": "1.20.10",
+        "minecraft:item": {
+            "description": {
+                "identifier": f"{NAMESPACE}:card_{slot_id}",
+                "menu_category": {
+                    "category": "items",
+                    "group": "itemGroup.name.elemental_powers"
+                }
+            },
+            "components": {
+                "minecraft:icon": {"texture": f"elem_card_{slot_id}"},
+                "minecraft:display_name": {"value": label},
+                "minecraft:max_stack_size": 1,
+                "minecraft:hand_equipped": True,
+                "minecraft:glint": False
+            }
+        }
+    }
+
+
 def main() -> None:
     written = []
     for el in STAFFS:
@@ -131,6 +168,12 @@ def main() -> None:
     for data, fname in [(scythe_item(), "dark_scythe.json"),
                         (gui_tool_item(), "gui_tool.json")]:
         path = BP_ITEMS / fname
+        path.write_text(json.dumps(data, indent=2))
+        written.append(path)
+
+    for slot_id, label in SKILL_CARDS:
+        data = skill_card_item(slot_id, label)
+        path = BP_ITEMS / f"card_{slot_id}.json"
         path.write_text(json.dumps(data, indent=2))
         written.append(path)
 

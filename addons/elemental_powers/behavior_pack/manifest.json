@@ -1,24 +1,24 @@
 {
   "format_version": 2,
   "header": {
-    "name": "Elemental Powers v6 (BP)",
+    "name": "Elemental Powers 1.0 beta (BP)",
     "description": "uekermjheh on rblx",
-    "uuid": "045dc7ab-8b2f-420c-aa50-bc68072ec6d2",
-    "version": [6, 0, 0],
+    "uuid": "38c5d1aa-8513-4bcb-ae74-e4717ba162d6",
+    "version": [1, 0, 0],
     "min_engine_version": [1, 21, 20]
   },
   "modules": [
     {
       "type": "data",
-      "uuid": "8d867bbe-522c-4946-89b3-d70952ab8472",
-      "version": [6, 0, 0]
+      "uuid": "46397572-f143-4f09-909b-7fb2c81bb4f5",
+      "version": [1, 0, 0]
     },
     {
       "type": "script",
       "language": "javascript",
       "entry": "scripts/main.js",
-      "uuid": "884351e7-eeb1-4ea7-9759-cf1de2b9e668",
-      "version": [6, 0, 0]
+      "uuid": "924b690a-e745-416c-bd79-c9e2ad25f00c",
+      "version": [1, 0, 0]
     }
   ],
   "dependencies": [
@@ -31,8 +31,8 @@
       "version": "1.2.0"
     },
     {
-      "uuid": "e11b27e1-6094-4603-9b10-d321699c2d3b",
-      "version": [6, 0, 0]
+      "uuid": "5f6d2177-b0de-40bd-8664-603a369b5b4c",
+      "version": [1, 0, 0]
     }
   ],
   "metadata": {

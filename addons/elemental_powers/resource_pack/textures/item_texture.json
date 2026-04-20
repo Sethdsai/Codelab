@@ -19,6 +19,18 @@
     "elem_air_orb": { "textures": "textures/items/elem_air_orb" },
     "elem_lightning_orb": { "textures": "textures/items/elem_lightning_orb" },
     "elem_light_orb": { "textures": "textures/items/elem_light_orb" },
-    "elem_dark_orb": { "textures": "textures/items/elem_dark_orb" }
+    "elem_dark_orb": { "textures": "textures/items/elem_dark_orb" },
+
+    "elem_card_primary": { "textures": "textures/items/elem_card_primary" },
+    "elem_card_bastion": { "textures": "textures/items/elem_card_bastion" },
+    "elem_card_skyfall": { "textures": "textures/items/elem_card_skyfall" },
+    "elem_card_root": { "textures": "textures/items/elem_card_root" },
+    "elem_card_slipstream": { "textures": "textures/items/elem_card_slipstream" },
+    "elem_card_conduit": { "textures": "textures/items/elem_card_conduit" },
+    "elem_card_climax": { "textures": "textures/items/elem_card_climax" },
+    "elem_card_plunge": { "textures": "textures/items/elem_card_plunge" },
+
+    "elem_icon_facebook": { "textures": "textures/items/elem_icon_facebook" },
+    "elem_icon_roblox": { "textures": "textures/items/elem_icon_roblox" }
   }
 }

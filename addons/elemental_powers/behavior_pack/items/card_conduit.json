@@ -1,0 +1,23 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:item": {
+    "description": {
+      "identifier": "elempower:card_conduit",
+      "menu_category": {
+        "category": "items",
+        "group": "itemGroup.name.elemental_powers"
+      }
+    },
+    "components": {
+      "minecraft:icon": {
+        "texture": "elem_card_conduit"
+      },
+      "minecraft:display_name": {
+        "value": "Conduit Rune"
+      },
+      "minecraft:max_stack_size": 1,
+      "minecraft:hand_equipped": true,
+      "minecraft:glint": false
+    }
+  }
+}
