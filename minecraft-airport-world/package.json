@@ -1,0 +1,18 @@
+{
+  "name": "minecraft-airport-world",
+  "version": "1.0.0",
+  "description": "Generate a Minecraft Bedrock .mcworld from scratch containing a small airport + airplane.",
+  "main": "build_airport.js",
+  "scripts": {
+    "build": "node build_airport.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "bedrock-provider": "^3.1.0",
+    "leveldb-zlib": "^1.2.0",
+    "prismarine-block": "^1.23.0",
+    "prismarine-chunk": "^1.40.0",
+    "prismarine-nbt": "^2.8.0",
+    "prismarine-registry": "^1.12.0"
+  }
+}
